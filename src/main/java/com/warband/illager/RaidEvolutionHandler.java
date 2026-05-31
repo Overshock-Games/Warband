@@ -86,13 +86,20 @@ public final class RaidEvolutionHandler {
     }
 
     private static void scanRaids(ServerLevel level) {
-        // No iterator on Raids — group loaded raiders by their current raid.
+        // No public iterator on Raids — group loaded raiders by their current
+        // raid, scoped to each online player's neighborhood. The world-border
+        // bounds AABB is effectively infinite and overflows entity-section
+        // lookups on Quilt/Fabric; a per-player box is the safe alternative.
         Set<Raid> seen = new HashSet<>();
-        for (Raider raider : level.getEntitiesOfClass(Raider.class, level.getWorldBorder().getCollisionShape().bounds())) {
-            Raid raid = raider.getCurrentRaid();
-            if (raid == null || raid.isOver() || raid.isStopped()) continue;
-            if (!seen.add(raid)) continue;
-            handleRaid(level, raid);
+        for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+            net.minecraft.world.phys.AABB box = net.minecraft.world.phys.AABB.ofSize(
+                    player.position(), 192.0, 96.0, 192.0);
+            for (Raider raider : level.getEntitiesOfClass(Raider.class, box)) {
+                Raid raid = raider.getCurrentRaid();
+                if (raid == null || raid.isOver() || raid.isStopped()) continue;
+                if (!seen.add(raid)) continue;
+                handleRaid(level, raid);
+            }
         }
     }
 

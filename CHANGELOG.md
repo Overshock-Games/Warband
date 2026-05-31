@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- Fixed a server crash during raid scans caused by an overly large entity-lookup box.
+
 ## 1.3.0
 
 - Added proactive AI: skeletons perch on high ground at dusk, spiders pre-web approach paths, idle zombies cluster into hordes.
