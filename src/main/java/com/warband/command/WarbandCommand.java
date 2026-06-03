@@ -1,7 +1,9 @@
 package com.warband.command;
 
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.warband.ai.Squad;
 import com.warband.ai.SquadCoordinator;
 import com.warband.ai.MultiplayerDirector;
@@ -12,12 +14,14 @@ import com.warband.difficulty.RegionalDifficulty;
 import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import com.warband.entity.WarbandAttachments;
+import com.warband.illager.IllagerFaction;
 import com.warband.illager.IllagerGrudgeSystem;
 import com.warband.mixin.MobGoalSelectorAccessor;
 import com.warband.spawn.SpawnDirector;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -64,7 +68,16 @@ public final class WarbandCommand {
                         .then(Commands.literal("region")
                                 .executes(WarbandCommand::reportRegion))
                         .then(Commands.literal("intel")
-                                .executes(WarbandCommand::reportIntel))
+                                .executes(WarbandCommand::reportIntel)
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .executes(WarbandCommand::reportIntelTarget)))
+                        .then(Commands.literal("clear")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(WarbandCommand::clearAll)
+                                        .then(Commands.argument("faction", StringArgumentType.word())
+                                                .executes(WarbandCommand::clearFactionCmd))))
                         .then(Commands.literal("reload")
                                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .executes(WarbandCommand::reloadConfig))
@@ -181,13 +194,53 @@ public final class WarbandCommand {
         CommandSourceStack source = ctx.getSource();
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFailure(Component.literal("[Warband] Faction intel requires a player source."));
+            source.sendFailure(Component.literal("[Warband] Faction intel requires a player source. Use /warband intel <player> as an op."));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("[Warband] Faction diplomacy / intel"), false);
+        return emitIntel(source, player, false);
+    }
+
+    private static int reportIntelTarget(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+        return emitIntel(ctx.getSource(), target, true);
+    }
+
+    private static int emitIntel(CommandSourceStack source, ServerPlayer player, boolean named) {
+        String header = named
+                ? "[Warband] Faction intel for " + player.getName().getString()
+                : "[Warband] Faction diplomacy / intel";
+        source.sendSuccess(() -> Component.literal(header), false);
         for (String line : IllagerGrudgeSystem.intelLines(player)) {
             source.sendSuccess(() -> Component.literal("  " + line), false);
         }
+        return 1;
+    }
+
+    private static int clearAll(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+        int cleared = IllagerGrudgeSystem.clearAllForPlayer(target);
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "[Warband] Cleared " + cleared + " grudge/heat entries from "
+                        + target.getName().getString() + "."), true);
+        return cleared;
+    }
+
+    private static int clearFactionCmd(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+        String name = StringArgumentType.getString(ctx, "faction").toUpperCase().replace('-', '_');
+        IllagerFaction faction;
+        try {
+            faction = IllagerFaction.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            ctx.getSource().sendFailure(Component.literal(
+                    "[Warband] Unknown faction '" + name + "'. Valid: BLACK_HORN, PALE_AXE, RED_LEDGER, ASH_BANNER, IRON_CHOIR."));
+            return 0;
+        }
+        IllagerGrudgeSystem.clearFactionForPlayer(target, faction);
+        IllagerFaction f = faction;
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "[Warband] Cleared " + f.displayName() + " grudges/heat from "
+                        + target.getName().getString() + "."), true);
         return 1;
     }
 

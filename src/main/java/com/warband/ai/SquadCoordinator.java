@@ -508,6 +508,11 @@ public final class SquadCoordinator {
         if (mob instanceof AbstractSkeleton) {
             accessor.warband$goalSelector().addGoal(8, new SkeletonPerchGoal(mob));
         }
+        // Passive rain shelter: out-of-combat spiders dislike being out in the
+        // rain and path to the nearest covered tile.
+        if (mob instanceof Spider) {
+            accessor.warband$goalSelector().addGoal(8, new com.warband.ai.goal.SpiderRainShelterGoal(mob));
+        }
         // Natural jockey acquisition: smart-enough mobs mount a suitable wild
         // animal when out of combat (skeleton+spider, baby zombie+chicken).
         if (com.warband.ai.goal.MountJockeyGoal.isEligibleRider(mob)) {

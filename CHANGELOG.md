@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- Added `/warband intel <player>` for ops to inspect another player's faction state.
+- Added `/warband clear <player> [faction]` for ops to wipe grudges and heat from a player, optionally scoped to one faction.
+- Added spider rain shelter: out-of-combat spiders path to the nearest covered tile when caught in the rain.
+
 ## 1.3.1
 
 - Fixed a server crash during raid scans caused by an overly large entity-lookup box.

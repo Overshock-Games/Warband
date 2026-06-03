@@ -209,6 +209,27 @@ public final class IllagerGrudgeSystem {
         return true;
     }
 
+    /** Wipe every faction's grudges and reputation from this player. Op-side full reset. */
+    public static int clearAllForPlayer(ServerPlayer player) {
+        int cleared = 0;
+        List<IllagerGrudge> grudges = grudges(player);
+        if (!grudges.isEmpty()) {
+            cleared += grudges.size();
+            player.setAttached(WarbandAttachments.ILLAGER_GRUDGES, List.of());
+        }
+        List<FactionReputation> reputations = reputations(player);
+        if (!reputations.isEmpty()) {
+            cleared += reputations.size();
+            player.setAttached(WarbandAttachments.ILLAGER_REPUTATION, List.of());
+        }
+        return cleared;
+    }
+
+    /** Public entry point for op-side single-faction wipe. */
+    public static void clearFactionForPlayer(ServerPlayer player, IllagerFaction faction) {
+        clearFaction(player, faction);
+    }
+
     /** Wipe a faction's grudges and reputation from a player, its war with them is over. */
     private static void clearFaction(ServerPlayer player, IllagerFaction faction) {
         List<IllagerGrudge> grudges = new ArrayList<>(grudges(player));
@@ -298,9 +319,10 @@ public final class IllagerGrudgeSystem {
 
     /**
      * Per-tick-scan passive heat decay so a player who stays out of a faction's
-     * affairs cools off over real time. Roughly 1 heat per 30s of online time
-     * per faction — slow enough that an active conflict still bombards, fast
-     * enough that "I'll just lay low" is a viable escape.
+     * affairs cools off over real time. ~1 heat per 10s of online time per
+     * faction (scan interval is 200 ticks). Full cool-down from max heat takes
+     * roughly 20 minutes online — slow enough that an active conflict still
+     * bombards, fast enough that "I'll just lay low" is a viable escape.
      */
     private static void decayReputation(ServerPlayer player) {
         List<FactionReputation> reputations = reputations(player);
