@@ -22,6 +22,9 @@ public final class CreeperStalkGoal extends SquadGoal {
 
     @Override
     public boolean canUse() {
+        // A creeper too scared to approach is too scared to stalk — let vanilla's
+        // cat/ocelot avoidance own the mob instead of racing it for the MOVE flag.
+        if (frightened()) return false;
         LivingEntity target = visibleTarget();
         if (target == null || !cooldownReady()) return false;
 

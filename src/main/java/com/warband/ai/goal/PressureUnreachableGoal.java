@@ -30,6 +30,9 @@ public final class PressureUnreachableGoal extends SquadGoal {
     @Override
     public boolean canUse() {
         if (!cooldownReady()) return false;
+        // The leap below sets delta movement directly, bypassing pathfinding — a
+        // frightened creeper must not be able to rocket past its own flee radius.
+        if (frightened()) return false;
 
         LivingEntity target = visibleTarget();
         BlockPos pressurePoint = target != null ? target.blockPosition() : squad.lastKnownPos();

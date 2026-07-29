@@ -30,7 +30,17 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
 
     @Override
     public boolean canContinueToUse() {
+        if (VisibilityRules.frightenedByNearbyAnimal(mob)) return false;
         return mob.isAlive() && !mob.isDeadOrDying() && !mob.isRemoved() && !mob.getNavigation().isDone();
+    }
+
+    /**
+     * Shared gate for {@code canUse()} in subclasses: don't start a tactic while
+     * the mob is fleeing something it fears. Paired with the same check in
+     * {@link #canContinueToUse()}, which releases the MOVE flag mid-tactic.
+     */
+    protected boolean frightened() {
+        return VisibilityRules.frightenedByNearbyAnimal(mob);
     }
 
     protected boolean decisionReady(int interval) {
