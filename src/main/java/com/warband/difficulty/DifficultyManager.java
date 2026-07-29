@@ -57,20 +57,15 @@ public final class DifficultyManager {
         return clamp01(value);
     }
 
-    /** Spawn-distance multiplier in [0, 1]. Overworld only; other dimensions are not safe-radius-gated. */
-    private static double spawnDistanceScale(ServerLevel level, BlockPos pos) {
-        if (!level.dimension().equals(Level.OVERWORLD)) return 1.0;
-        if (level.getServer() == null) return 1.0;
-        BlockPos spawn = level.getServer().overworld().getRespawnData().pos();
-        double dx = pos.getX() - spawn.getX();
-        double dz = pos.getZ() - spawn.getZ();
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        double safe = WarbandConfig.safeRadius;
-        double max = Math.max(safe + 1.0, WarbandConfig.maxDifficultyRadius);
-        return clamp01((dist - safe) / (max - safe));
-    }
-
-    /** Regional spawn grace: calm inside safeRadius, full strength after regionalSpawnRampBlocks. */
+    /**
+     * Regional spawn grace: calm inside safeRadius, full strength after
+     * regionalSpawnRampBlocks.
+     *
+     * <p>Eased rather than linear. A linear ramp starts climbing at full rate the
+     * moment you leave the safe radius and stops dead on arrival at the top, which
+     * players read as a step — the reported "staircase rather than an upwards ramp".
+     * Smoothstep flattens both ends so pressure creeps in and settles in.
+     */
     public static double regionalSpawnScale(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Level.OVERWORLD)) return 1.0;
         if (level.getServer() == null) return 1.0;
@@ -80,7 +75,12 @@ public final class DifficultyManager {
         double dx = pos.getX() - spawn.getX();
         double dz = pos.getZ() - spawn.getZ();
         double dist = Math.sqrt(dx * dx + dz * dz);
-        return clamp01((dist - safe) / WarbandConfig.regionalSpawnRampBlocks);
+        return smoothstep(clamp01((dist - safe) / WarbandConfig.regionalSpawnRampBlocks));
+    }
+
+    /** Classic 3t²-2t³ ease. Zero slope at both ends, so no visible seam. */
+    private static double smoothstep(double t) {
+        return t * t * (3.0 - 2.0 * t);
     }
 
     /** True only in the fully protected Overworld spawn-safe circle. */
@@ -103,7 +103,9 @@ public final class DifficultyManager {
         int max = WarbandConfig.overworldDepthMaxY;
         if (start == max || pos.getY() >= start) return 0.0;
         double t = (start - pos.getY()) / (double) Math.max(1, start - max);
-        return clamp01(t) * WarbandConfig.overworldDepthBonusMax;
+        // Eased for the same reason as the spawn ramp: descending into a cave is
+        // fast, so a linear onset arrives as a jolt right at the threshold depth.
+        return smoothstep(clamp01(t)) * WarbandConfig.overworldDepthBonusMax;
     }
 
     /** Per-dimension additive pressure, the Nether and End are inherently harsher. */

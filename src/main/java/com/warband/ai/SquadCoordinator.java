@@ -553,9 +553,27 @@ public final class SquadCoordinator {
                 || mob instanceof Zoglin;
     }
 
+    /** Ring the formation spawns into, so members start spread out rather than stacked. */
+    private static final int FORMATION_MIN_RADIUS = 3;
+    private static final int FORMATION_MAX_RADIUS = 7;
+    /** How far up/down to look for solid footing at a formation slot. */
+    private static final int FORMATION_VERTICAL_SEARCH = 4;
+
+    /** Formations start appearing here, and become reliable at {@link #FORMATION_FULL_DIFFICULTY}. */
+    private static final double FORMATION_MIN_DIFFICULTY = 0.35;
+    private static final double FORMATION_FULL_DIFFICULTY = 0.60;
+
     private static void spawnNaturalSquadmates(Squad squad, Mob anchor, double difficulty) {
         int cap = effectiveMaxSquadSize(squad.level(), anchor.blockPosition());
-        if (difficulty < 0.45 || squad.members().size() >= cap) return;
+        if (difficulty < FORMATION_MIN_DIFFICULTY || squad.members().size() >= cap) return;
+
+        // Faded in rather than switched on at a single threshold. A hard gate at
+        // 0.45 meant crowds appeared all at once, in the same difficulty band where
+        // gear and leaders also unlocked, which is what made progression read as a
+        // staircase. Also keeps total mob volume lower through the early game.
+        double formationChance = Math.min(1.0,
+                (difficulty - FORMATION_MIN_DIFFICULTY) / (FORMATION_FULL_DIFFICULTY - FORMATION_MIN_DIFFICULTY));
+        if (formationChance < 1.0 && anchor.getRandom().nextDouble() >= formationChance) return;
 
         int baseSize = 2 + (int) Math.floor(difficulty * 3.0);
         if (isZombieFamily(anchor)) {
@@ -566,10 +584,13 @@ public final class SquadCoordinator {
         for (int i = 0; i < toSpawn; i++) {
             if (!underSmartCap(squad.level(), anchor)) break;
 
-            BlockPos pos = anchor.blockPosition().offset(
-                    anchor.getRandom().nextInt(7) - 3,
-                    0,
-                    anchor.getRandom().nextInt(7) - 3);
+            // Placed around a ring at distinct bearings instead of inside a 7x7 box
+            // at the anchor's own Y. The old box put members on top of each other
+            // and, on any uneven ground, inside terrain — they were then shoved out
+            // into a single heap, which is what read to players as a horde piling
+            // into one corner and never reaching them.
+            BlockPos pos = formationSlot(squad.level(), anchor, i, toSpawn);
+            if (pos == null) continue;
             Mob spawned = spawnSameType(anchor, pos);
             if (spawned == null) continue;
 
@@ -577,6 +598,37 @@ public final class SquadCoordinator {
             addMob(squad, spawned, role, difficulty);
             TacticalEffects.signal(squad.level(), spawned.position());
         }
+    }
+
+    /**
+     * A standable tile on a ring around the anchor, at this member's own bearing.
+     * Returns null when the slot is blocked, so a squadmate is skipped rather than
+     * spawned inside a wall.
+     */
+    private static BlockPos formationSlot(ServerLevel level, Mob anchor, int index, int total) {
+        double spread = Math.max(1, total);
+        double angle = (index * (Math.PI * 2.0)) / spread + anchor.getRandom().nextDouble() * 0.4;
+        int radius = FORMATION_MIN_RADIUS
+                + anchor.getRandom().nextInt(FORMATION_MAX_RADIUS - FORMATION_MIN_RADIUS + 1);
+        BlockPos origin = anchor.blockPosition();
+        int x = origin.getX() + (int) Math.round(Math.cos(angle) * radius);
+        int z = origin.getZ() + (int) Math.round(Math.sin(angle) * radius);
+
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int step = 0; step <= FORMATION_VERTICAL_SEARCH * 2; step++) {
+            int dy = (step + 1) / 2;
+            if (step % 2 == 1) dy = -dy;
+            cursor.set(x, origin.getY() + dy, z);
+            if (isStandable(level, cursor)) return cursor.immutable();
+        }
+        return null;
+    }
+
+    /** Two blocks of clearance on solid footing — room for a humanoid to exist. */
+    private static boolean isStandable(ServerLevel level, BlockPos pos) {
+        if (!level.getBlockState(pos).isAir()) return false;
+        if (!level.getBlockState(pos.above()).isAir()) return false;
+        return !level.getBlockState(pos.below()).isAir();
     }
 
     @SuppressWarnings("unchecked")

@@ -25,8 +25,12 @@ public final class WarbandConfig {
     public static DifficultyMode difficultyMode = DifficultyMode.REGIONAL;
     /** Blocks from world spawn that stay fully vanilla (difficulty 0). */
     public static int safeRadius = 96;
-    /** REGIONAL mode: blocks after safeRadius until learned pressure reaches full strength. */
-    public static int regionalSpawnRampBlocks = 32;
+    /**
+     * REGIONAL mode: blocks after safeRadius until learned pressure reaches full
+     * strength. A short ramp reads as a difficulty cliff — at 32 the world went
+     * from fully calm to fully hostile over one screen's worth of travel.
+     */
+    public static int regionalSpawnRampBlocks = 256;
     /** Distance from spawn at which difficulty caps (DISTANCE mode). */
     public static int maxDifficultyRadius = 4096;
     /** Optional mercy window after death. 0 disables relief and keeps regional pressure honest. */
