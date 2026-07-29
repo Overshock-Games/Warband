@@ -1,5 +1,76 @@
 # Changelog
 
+## 1.4.0
+
+Last release for 26.1.2. Subsequent updates target 26.2, which is not
+source-compatible (see `docs/PORTING-26.2.md`).
+
+### Fixed
+
+- Fixed undead abandoning a chase to stand under nearby cover, then pacing in and
+  out of it. Sun-shelter ran at a higher goal priority than the vanilla attack
+  goal and never checked for a target, so pillaring up and breaking the base left
+  every zombie underneath pinned to the leftover blocks. Undead now only seek
+  shade out of combat, and burn while chasing, as in vanilla.
+- Fixed squad members being dragged back to the group while actively chasing. A
+  horde that bunched up would reel its own pursuers in, so mobs never followed a
+  player any real distance. Regrouping now only applies when nobody can see the
+  target.
+- Fixed `config/warband.properties` resolving against the process working
+  directory. Servers launched from anywhere but the game directory read and wrote
+  a different file than the one in the pack, so edits appeared to be discarded.
+- Fixed config edits not applying until a full game restart. The file is now
+  re-read when a world loads and on `/reload`.
+- Fixed creepers ignoring cats and ocelots. Vanilla's avoidance goal shares a
+  priority with Warband's regroup goal, and the goal selector cannot break a tie,
+  so whichever started first kept control of movement. Warband tactics now yield
+  entirely while a cat is within the vanilla fear radius.
+- Fixed spiders climbing to a player and then never attacking, or stopping dead
+  in front of them. Ceiling-crawl shared a priority with the vanilla spider
+  attack goal and held on to movement as long as the spider touched any wall.
+- Fixed spider webs being inescapable. Webs landed on the target's own block
+  every 3 seconds with no stacking check, so they hit the face with nowhere to
+  dodge and were reapplied the moment a player broke free.
+- Fixed squad formations spawning inside terrain and on top of each other, which
+  made hordes pile into one spot instead of reaching the player. Members now take
+  distinct bearings on a ring, and each slot is checked for real standing room.
+- Fixed zombie encirclement giving up when its preferred approach was blocked,
+  which put the whole squad back on one path.
+
+### Changed
+
+- Difficulty progression is a ramp rather than a staircase. Role gear was a hard
+  cutoff — nothing below difficulty 0.35, a full iron kit at it — and squad
+  formations and leaders unlocked in the same narrow band. Gear pieces now roll
+  independently on a curve from 0.25 to 0.80 and climb leather → chainmail →
+  iron, formations fade in from 0.35, and both the spawn-distance ramp and the
+  cave depth bonus are eased.
+- `regionalSpawnRampBlocks` default 32 → 256. At 32 the world went from fully
+  calm to fully hostile across one screen of travel. **Existing configs keep
+  their own value; raise it by hand to get the smoother curve.**
+- Spider webs are a zoning tool rather than a stun: they lead a moving target, so
+  movement is the counterplay, and spiders bite instead of webbing at point-blank
+  range.
+- Reduced early-game mob volume as a side effect of fading formations in, which
+  was also reported as a lag source.
+
+### Added
+
+- Added `customMobPools`, opting modded mobs into Warband behaviour pools so they
+  gain the matching tactics and roles and squad up with their vanilla
+  counterparts. Mobs that already extend a vanilla class (most custom zombies) are
+  picked up automatically and need no entry.
+- Added a one-time explainer the first time a player earns faction heat. Every
+  other faction message announced a consequence — a revenge party, a bounty
+  hunter — without ever establishing that the faction system exists, so players
+  could not tell what they had triggered, or whether they had triggered anything.
+
+### Internal
+
+- Gradle 9.6.1, Loom 1.17.17, Fabric loader 0.19.3, Fabric API 0.155.2+26.1.2.
+- Shelter searches scan outward with an early exit instead of testing every block
+  in a ~2200-block volume on every recheck for every undead.
+
 ## 1.3.2
 
 - Added `/warband intel <player>` for ops to inspect another player's faction state.

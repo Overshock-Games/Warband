@@ -38,6 +38,7 @@ import com.warband.compat.IllagerInvasionCompat;
 import com.warband.compat.RaidCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
+import com.warband.entity.MobPools;
 import com.warband.entity.Role;
 import com.warband.entity.Tactic;
 import com.warband.mixin.MobGoalSelectorAccessor;
@@ -78,6 +79,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -696,19 +698,41 @@ public final class SquadCoordinator {
                 || mob instanceof Ghast
                 || mob instanceof CaveSpider
                 || mob instanceof Ravager
-                || mob instanceof Warden;
+                || mob instanceof Warden
+                // Opt-in only: an explicit customMobPools entry. Deliberately not
+                // "has any subject" — that would sweep in every modded RangedAttackMob.
+                || MobPools.isConfigured(mob);
+    }
+
+    /**
+     * Pools whose members form and share squads. Derived from {@link Tactic.Subject}
+     * rather than a chain of {@code instanceof} checks, so a modded mob mapped into
+     * a pool via {@code customMobPools} squads up with its vanilla counterparts.
+     */
+    private static final EnumSet<Tactic.Subject> SQUAD_FAMILIES = EnumSet.of(
+            Tactic.Subject.ZOMBIE_FAMILY,
+            Tactic.Subject.ABSTRACT_SKELETON,
+            Tactic.Subject.SPIDER,
+            Tactic.Subject.ABSTRACT_PIGLIN,
+            Tactic.Subject.HOGLIN_FAMILY,
+            Tactic.Subject.ILLAGER_LIKE);
+
+    /** Skeletons form squads but never shout for reinforcements. */
+    private static final EnumSet<Tactic.Subject> BACKUP_FAMILIES = EnumSet.of(
+            Tactic.Subject.ZOMBIE_FAMILY,
+            Tactic.Subject.SPIDER,
+            Tactic.Subject.ABSTRACT_PIGLIN,
+            Tactic.Subject.HOGLIN_FAMILY,
+            Tactic.Subject.ILLAGER_LIKE);
+
+    private static EnumSet<Tactic.Subject> squadFamilies(Mob mob) {
+        EnumSet<Tactic.Subject> families = Tactic.subjectsFor(mob);
+        families.retainAll(SQUAD_FAMILIES);
+        return families;
     }
 
     private static boolean formsNaturalSquads(Mob mob) {
-        return mob instanceof Zombie
-                || mob instanceof Drowned
-                || mob instanceof ZombifiedPiglin
-                || mob instanceof AbstractSkeleton
-                || mob instanceof Spider
-                || mob instanceof AbstractPiglin
-                || mob instanceof Hoglin
-                || mob instanceof Zoglin
-                || IllagerInvasionCompat.isIllagerLike(mob);
+        return !squadFamilies(mob).isEmpty();
     }
 
     private static boolean alwaysSoloTactic(Mob mob) {
@@ -728,14 +752,9 @@ public final class SquadCoordinator {
     }
 
     private static boolean canCallBackup(Mob mob) {
-        return mob instanceof Zombie
-                || mob instanceof Drowned
-                || mob instanceof ZombifiedPiglin
-                || mob instanceof Spider
-                || mob instanceof AbstractPiglin
-                || mob instanceof Hoglin
-                || mob instanceof Zoglin
-                || IllagerInvasionCompat.isIllagerLike(mob);
+        EnumSet<Tactic.Subject> subjects = Tactic.subjectsFor(mob);
+        subjects.retainAll(BACKUP_FAMILIES);
+        return !subjects.isEmpty();
     }
 
     private static boolean canRecruitBackup(Squad squad, Mob candidate) {
@@ -744,26 +763,14 @@ public final class SquadCoordinator {
                 && sameSquadFamily(squad.members().getFirst(), candidate);
     }
 
+    /** Two mobs share a squad when they share a behaviour pool, else only when identical. */
     private static boolean sameSquadFamily(Mob a, Mob b) {
-        if (isZombieFamily(a) || isZombieFamily(b)) {
-            return isZombieFamily(a) && isZombieFamily(b);
+        EnumSet<Tactic.Subject> familiesA = squadFamilies(a);
+        EnumSet<Tactic.Subject> familiesB = squadFamilies(b);
+        if (familiesA.isEmpty() && familiesB.isEmpty()) {
+            return a.getType() == b.getType();
         }
-        if (a instanceof AbstractSkeleton || b instanceof AbstractSkeleton) {
-            return a instanceof AbstractSkeleton && b instanceof AbstractSkeleton;
-        }
-        if (a instanceof Spider || b instanceof Spider) {
-            return a instanceof Spider && b instanceof Spider;
-        }
-        if (a instanceof AbstractPiglin || b instanceof AbstractPiglin) {
-            return a instanceof AbstractPiglin && b instanceof AbstractPiglin;
-        }
-        if (a instanceof Hoglin || a instanceof Zoglin || b instanceof Hoglin || b instanceof Zoglin) {
-            return (a instanceof Hoglin || a instanceof Zoglin) && (b instanceof Hoglin || b instanceof Zoglin);
-        }
-        if (IllagerInvasionCompat.isIllagerLike(a) || IllagerInvasionCompat.isIllagerLike(b)) {
-            return IllagerInvasionCompat.isIllagerLike(a) && IllagerInvasionCompat.isIllagerLike(b);
-        }
-        return a.getType() == b.getType();
+        return !java.util.Collections.disjoint(familiesA, familiesB);
     }
 
     private static boolean isZombieFamily(Mob mob) {

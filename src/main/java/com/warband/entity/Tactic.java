@@ -165,8 +165,14 @@ public enum Tactic {
         return mask;
     }
 
-    private static EnumSet<Subject> subjectsFor(Mob mob) {
-        EnumSet<Subject> subjects = EnumSet.noneOf(Subject.class);
+    /**
+     * The behaviour pools this mob belongs to: derived from its vanilla class, plus
+     * anything the user declared via {@code customMobPools}. Drives both tactic
+     * selection and squad-family matching, so a modded mob mapped to
+     * {@code ZOMBIE_FAMILY} both gains zombie tactics and squads with real zombies.
+     */
+    public static EnumSet<Subject> subjectsFor(Mob mob) {
+        EnumSet<Subject> subjects = MobPools.subjectsFor(mob);
         if (mob instanceof Spider) subjects.add(Subject.SPIDER);
         if (mob instanceof CaveSpider) subjects.add(Subject.CAVE_SPIDER);
         if (mob instanceof AbstractSkeleton) subjects.add(Subject.ABSTRACT_SKELETON);
@@ -191,7 +197,8 @@ public enum Tactic {
         return subjects;
     }
 
-    enum Subject {
+    /** Behaviour pools. Also the vocabulary users write in {@code customMobPools}. */
+    public enum Subject {
         SPIDER,
         CAVE_SPIDER,
         ABSTRACT_SKELETON,

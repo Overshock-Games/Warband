@@ -107,6 +107,11 @@ public final class WarbandConfig {
     public static boolean extendedMobTacticsEnabled = true;
     /** Comma-separated tactic names to suppress while keeping other smart AI active. */
     public static String disabledTactics = "";
+    /**
+     * Opts modded mobs into Warband behaviour pools. See
+     * {@link com.warband.entity.MobPools} for the format.
+     */
+    public static String customMobPools = "";
     private static EnumSet<Tactic> disabledTacticSet = EnumSet.noneOf(Tactic.class);
     /** If true, log each Warband tactic execution for debugging and balance passes. */
     public static boolean debugTacticLogs = false;
@@ -264,6 +269,8 @@ public final class WarbandConfig {
         extendedMobTacticsEnabled = parseBoolean(props, "extendedMobTacticsEnabled", extendedMobTacticsEnabled, logger);
         disabledTactics = props.getProperty("disabledTactics", disabledTactics).trim();
         disabledTacticSet = parseTacticSet(disabledTactics, logger);
+        customMobPools = props.getProperty("customMobPools", customMobPools).trim();
+        com.warband.entity.MobPools.load(customMobPools, logger);
         debugTacticLogs = parseBoolean(props, "debugTacticLogs", debugTacticLogs, logger);
         seekShelterEnabled = parseBoolean(props, "seekShelterEnabled", seekShelterEnabled, logger);
         endermanProvokeEnabled = parseBoolean(props, "endermanProvokeEnabled", endermanProvokeEnabled, logger);
@@ -414,6 +421,16 @@ public final class WarbandConfig {
                 extendedMobTacticsEnabled=%s
                 # Comma-separated tactic names to disable, e.g. SPIDER_WEB,CEILING_CRAWL,RANGED_REPOSITION,ENDERMAN_DISRUPT.
                 disabledTactics=%s
+                # Opt modded mobs into Warband behaviour pools, so they gain the matching
+                # tactics/roles and squad up with their vanilla counterparts. Pools are
+                # separated by ';' and entity ids by ','; '>' splits a pool from its ids
+                # (entity ids already contain ':'). Example:
+                #   customMobPools=ZOMBIE_FAMILY>examplemod:armored_zombie;SPIDER>examplemod:giant_spider
+                # Pools: SPIDER, CAVE_SPIDER, ABSTRACT_SKELETON, STRAY, BOGGED, RANGED_ATTACK,
+                # ZOMBIE_FAMILY, CREEPER, ENDERMAN, ABSTRACT_PIGLIN, BLAZE, WITCH, SLIME_FAMILY,
+                # HOGLIN_FAMILY, ILLAGER_LIKE, PHANTOM, GUARDIAN, SHULKER, GHAST, RAVAGER, WARDEN.
+                # Find an entity id with: /data get entity @e[limit=1,sort=nearest] id
+                customMobPools=%s
                 # If true, logs each Warband tactic execution for debugging.
                 debugTacticLogs=%s
                 # If true, sun-sensitive undead path to shade at dawn instead of waiting to burn.
@@ -534,6 +551,7 @@ public final class WarbandConfig {
                     enderDragonAbilitiesEnabled,
                     extendedMobTacticsEnabled,
                     disabledTactics,
+                    customMobPools,
                     debugTacticLogs,
                     seekShelterEnabled,
                     endermanProvokeEnabled,

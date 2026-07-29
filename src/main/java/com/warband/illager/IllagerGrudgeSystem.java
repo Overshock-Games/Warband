@@ -209,6 +209,32 @@ public final class IllagerGrudgeSystem {
         return true;
     }
 
+    /**
+     * One-time explainer the first time a player earns heat with any faction.
+     *
+     * <p>Every other faction message announces a <i>consequence</i> — a revenge
+     * party, a war patrol, a bounty hunter. None of them establish that illagers
+     * belong to rival factions that remember you, so players hit those messages
+     * with no idea what system produced them, or whether they had triggered
+     * anything at all. Sent once, in chat rather than the action bar, because
+     * the action bar is where the mod's own reports said a name flashed past
+     * before it could be read.
+     */
+    private static void introduceFactions(ServerPlayer player, IllagerFaction faction) {
+        if (!WarbandConfig.illagerFactionsEnabled) return;
+        if (Boolean.TRUE.equals(player.getAttached(WarbandAttachments.FACTION_INTRODUCED))) return;
+        player.setAttached(WarbandAttachments.FACTION_INTRODUCED, true);
+
+        player.sendSystemMessage(Component.literal(
+                "§6The " + faction.displayName() + " have marked you."));
+        player.sendSystemMessage(Component.literal(
+                "§7Illagers belong to five rival factions. They remember who kills their own, "
+                        + "and send patrols, revenge parties and bounty hunters after them. "
+                        + "Helping a faction's rival cools them down."));
+        player.sendSystemMessage(Component.literal(
+                "§7Check where you stand with §f/warband intel§7."));
+    }
+
     /** Wipe every faction's grudges and reputation from this player. Op-side full reset. */
     public static int clearAllForPlayer(ServerPlayer player) {
         int cleared = 0;
@@ -900,6 +926,9 @@ public final class IllagerGrudgeSystem {
     }
 
     private static void addReputation(ServerPlayer player, IllagerFaction faction, int heat, long bountyReadyAt) {
+        if (heat > 0) {
+            introduceFactions(player, faction);
+        }
         // Heat is also the display value for /warband intel — track it regardless
         // of whether bounty hunters are enabled; only the hunter spawn is gated.
         List<FactionReputation> reputations = new ArrayList<>(reputations(player));

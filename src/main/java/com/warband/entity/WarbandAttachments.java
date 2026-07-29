@@ -141,6 +141,15 @@ public final class WarbandAttachments {
             builder -> builder.persistent(FactionReputation.CODEC.listOf()).copyOnDeath()
     );
 
+    /**
+     * On a player: set once the faction system has introduced itself, so the
+     * one-time explainer never repeats.
+     */
+    public static final AttachmentType<Boolean> FACTION_INTRODUCED = AttachmentRegistry.create(
+            Identifier.fromNamespaceAndPath(WarbandMod.MOD_ID, "faction_introduced"),
+            builder -> builder.persistent(Codec.BOOL).copyOnDeath()
+    );
+
     private WarbandAttachments() {
     }
 
