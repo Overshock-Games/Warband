@@ -99,7 +99,8 @@ public final class WarbandCommand {
 
     private static int reloadConfig(CommandContext<CommandSourceStack> ctx) {
         WarbandConfig.load(WarbandMod.LOGGER);
-        ctx.getSource().sendSuccess(() -> Component.literal("[Warband] config reloaded from config/warband.properties"), true);
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "[Warband] config reloaded from " + WarbandConfig.configLocation()), true);
         return 1;
     }
 

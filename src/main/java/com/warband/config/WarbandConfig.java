@@ -155,15 +155,46 @@ public final class WarbandConfig {
     // ── Items ──────────────────────────────────────────────────────────────
     public static boolean goatHornCommandEnabled = true;
 
-    private static final Path CONFIG_PATH = Path.of("config", "warband.properties");
+    private static Path configPath;
 
     private WarbandConfig() {
     }
 
+    /**
+     * Absolute path to {@code config/warband.properties}, resolved through the
+     * loader rather than the process working directory.
+     *
+     * <p>A bare relative path resolves against wherever the JVM was launched
+     * from, which is only the game directory by luck. Dedicated servers started
+     * from a parent directory (or via a wrapper script) read and wrote a
+     * <i>different</i> file than the one in the pack's {@code config/} folder,
+     * so edits looked like they were silently discarded.
+     *
+     * <p>Falls back to the old relative path when no loader is present, so this
+     * class stays usable from plain unit tests.
+     */
+    private static Path configPath() {
+        if (configPath == null) {
+            try {
+                configPath = net.fabricmc.loader.api.FabricLoader.getInstance()
+                        .getConfigDir().resolve("warband.properties");
+            } catch (Throwable ignored) {
+                configPath = Path.of("config", "warband.properties");
+            }
+        }
+        return configPath;
+    }
+
+    /** Where the config actually lives, for command feedback. */
+    public static String configLocation() {
+        return configPath().toString();
+    }
+
     public static void load(Logger logger) {
+        Path path = configPath();
         Properties props = new Properties();
-        if (Files.exists(CONFIG_PATH)) {
-            try (Reader r = Files.newBufferedReader(CONFIG_PATH, StandardCharsets.UTF_8)) {
+        if (Files.exists(path)) {
+            try (Reader r = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
                 props.load(r);
             } catch (IOException e) {
                 logger.error("[Warband] Failed to read config, using defaults", e);
@@ -268,11 +299,12 @@ public final class WarbandConfig {
     }
 
     public static void save(Logger logger) {
+        Path path = configPath();
         try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            Files.writeString(CONFIG_PATH, toPropertiesString(), StandardCharsets.UTF_8);
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, toPropertiesString(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            logger.error("[Warband] Failed to save config", e);
+            logger.error("[Warband] Failed to save config to {}", path, e);
         }
     }
 
