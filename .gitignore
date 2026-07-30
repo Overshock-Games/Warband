@@ -47,3 +47,6 @@ graphify-out/
 
 # Claude Code personal settings (graphify hooks are machine-local)
 .claude/settings.local.json
+
+# Internal planning and porting notes — kept local, not shipped
+docs/

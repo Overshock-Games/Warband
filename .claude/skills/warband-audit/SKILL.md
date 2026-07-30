@@ -65,7 +65,7 @@ while the vanilla attack goal was trying to use it. If a flagless goal writes
 `@ModifyArg(index = N)` encodes a hand-written assumption about a target descriptor, and
 `mixins.json` uses `defaultRequire: 1`, so a changed signature is **fatal at load** rather
 than a warning. Re-verify against the real descriptor on every Minecraft update —
-`docs/PORTING-26.2.md` tracks these.
+the local porting notes track these (`docs/` is untracked — working notes, not shipped).
 
 ### Inline fully-qualified names
 
@@ -84,8 +84,9 @@ It is static analysis on a behaviour mod. It says nothing about whether a tactic
 whether the AI reads as intelligent, or whether tuning feels right. For those:
 
 - `debugTacticLogs=true` emits a machine-readable `EVENT=` trace; `grep "EVENT="` on the log
-- `docs/TESTING-1.4.0.md` lists the cases, split into `[LOG]` (verifiable from a log) and
-  `[EYES]` (needs a human)
+- the local test plan under `docs/` lists the cases, split into `[LOG]` (verifiable from a
+  log) and `[EYES]` (needs a human). That directory is untracked, so it may be absent in a
+  fresh clone
 - ratios matter: 26 `SIEGE_DIG_START` against 3 `SIEGE_BLOCK_REMOVED` is how the
   reachability bug was found, and no static check would have surfaced it
 
