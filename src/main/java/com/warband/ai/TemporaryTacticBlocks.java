@@ -1,8 +1,10 @@
 package com.warband.ai;
 
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
@@ -79,10 +81,22 @@ public final class TemporaryTacticBlocks {
     private static boolean restoreMined(Entry entry) {
         BlockState current = entry.level.getBlockState(entry.pos);
         // Someone rebuilt here, or another system claimed the space. Never overwrite.
-        if (!current.isAir()) return true;
-        if (isOccupied(entry.level, entry.pos, entry.restoreState)) return false;
+        if (!current.isAir()) {
+            WarbandDebug.event("SIEGE_RESTORE_SKIPPED", posDetail(entry.pos) + " reason=occupied_by_block");
+            return true;
+        }
+        if (isOccupied(entry.level, entry.pos, entry.restoreState)) {
+            WarbandDebug.event("SIEGE_RESTORE_DEFERRED", posDetail(entry.pos) + " reason=entity_inside");
+            return false;
+        }
         entry.level.setBlock(entry.pos, entry.restoreState, BLOCK_UPDATE);
+        WarbandDebug.event("SIEGE_RESTORE", posDetail(entry.pos)
+                + " block=" + BuiltInRegistries.BLOCK.getKey(entry.restoreState.getBlock()));
         return true;
+    }
+
+    private static String posDetail(BlockPos pos) {
+        return "pos=" + pos.getX() + " " + pos.getY() + " " + pos.getZ();
     }
 
     /** True when restoring this state would materialise a block inside something. */
@@ -129,6 +143,11 @@ public final class TemporaryTacticBlocks {
         if (!WarbandConfig.siegeMiningPermanent) {
             ENTRIES.add(new Entry(level, immutable, null, original, level.getGameTime() + ttlTicks));
         }
+        WarbandDebug.event("SIEGE_BLOCK_REMOVED", posDetail(immutable)
+                + " block=" + BuiltInRegistries.BLOCK.getKey(original.getBlock())
+                + " permanent=" + WarbandConfig.siegeMiningPermanent
+                + " restoreIn=" + (WarbandConfig.siegeMiningPermanent ? "never" : ttlTicks + "t")
+                + " pending=" + ENTRIES.size());
         return true;
     }
 

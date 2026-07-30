@@ -1,5 +1,6 @@
 package com.warband.ai.goal;
 
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import net.minecraft.core.BlockPos;
@@ -41,6 +42,7 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
 
     private final Mob mob;
     private Vec3 fleeFrom;
+    private String threatKind = "?";
     private int recheckCounter;
 
     public DreadAvoidGoal(Mob mob) {
@@ -60,6 +62,7 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
         Entity threat = nearestThreat();
         if (threat == null) return false;
         fleeFrom = threat.position();
+        threatKind = threat.getType().toShortString();
         return true;
     }
 
@@ -77,7 +80,8 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
         }
         Vec3 destination = mob.position().add(away.normalize().scale(FLEE_DISTANCE));
         BlockPos pos = BlockPos.containing(destination.x, destination.y, destination.z);
-        mob.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 1.25);
+        boolean moving = mob.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 1.25);
+        WarbandDebug.event("DREAD_AVOID", mob, "threat=" + threatKind + " fled=" + moving);
     }
 
     @Override

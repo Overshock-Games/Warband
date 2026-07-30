@@ -1,5 +1,6 @@
 package com.warband.ai;
 
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -60,6 +61,7 @@ public final class VehicleEscape {
         if (vehicle.getDeltaMovement().horizontalDistanceSqr() > 0.005) return;
         if (mob.tickCount < TRAPPED_TICKS) return;
 
+        WarbandDebug.event("VEHICLE_ESCAPE", mob, "vehicle=" + vehicle.getType().toShortString());
         mob.stopRiding();
         // Destroy rather than merely dismount: otherwise the mob walks straight back
         // in, or the player simply re-seats it.

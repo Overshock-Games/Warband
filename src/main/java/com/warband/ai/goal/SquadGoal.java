@@ -2,8 +2,10 @@ package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
 import com.warband.ai.VisibilityRules;
+import com.warband.WarbandDebug;
 import com.warband.WarbandMod;
 import com.warband.config.WarbandConfig;
+import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
@@ -73,13 +75,11 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
     protected void logTactic(Tactic tactic) {
         if (!WarbandConfig.debugTacticLogs) return;
         LivingEntity target = mob.getTarget();
-        WarbandMod.LOGGER.info("[Warband] {} used {} at {} {} {} target={}",
-                mob.getType().toShortString(),
-                tactic.name(),
-                mob.blockPosition().getX(),
-                mob.blockPosition().getY(),
-                mob.blockPosition().getZ(),
-                target == null ? "none" : target.getType().toShortString());
+        // Routed through WarbandDebug so tactic logs share the machine-readable
+        // EVENT=/key=value shape with every other behaviour trace.
+        WarbandDebug.event(tactic.name(), mob, String.format("diff=%.2f target=%s",
+                MobData.get(mob).difficulty(),
+                target == null ? "none" : target.getType().toShortString()));
     }
 
     protected @Nullable BlockPos awayFrom(Vec3 threat, double distance) {

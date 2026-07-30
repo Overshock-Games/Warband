@@ -2,10 +2,12 @@ package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
 import com.warband.ai.TemporaryTacticBlocks;
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
@@ -114,6 +116,12 @@ public final class SiegeMineGoal extends SquadGoal {
     @Override
     public void start() {
         mob.getNavigation().stop();
+        WarbandDebug.event("SIEGE_DIG_START", mob, String.format(
+                "diff=%.2f block=%s target=%s digTicks=%d broken=%d",
+                MobData.get(mob).difficulty(),
+                BuiltInRegistries.BLOCK.getKey(mob.level().getBlockState(digTarget).getBlock()),
+                digTarget.getX() + " " + digTarget.getY() + " " + digTarget.getZ(),
+                digTicksNeeded, blocksBroken));
     }
 
     @Override

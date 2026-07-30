@@ -1,6 +1,7 @@
 package com.warband.ai.goal;
 
 import com.warband.ai.ShelterScan;
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -78,6 +79,8 @@ public final class SeekShelterGoal extends Goal implements WarbandGoal {
     @Override
     public void start() {
         mob.getNavigation().moveTo(shelter.getX() + 0.5, shelter.getY(), shelter.getZ() + 0.5, 1.3);
+        WarbandDebug.event("SEEK_SHELTER", mob, "shelter=" + shelter.getX() + " " + shelter.getY()
+                + " " + shelter.getZ() + " target=none");
     }
 
     @Override

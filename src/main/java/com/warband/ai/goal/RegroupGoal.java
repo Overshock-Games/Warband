@@ -1,5 +1,6 @@
 package com.warband.ai.goal;
 
+import com.warband.WarbandDebug;
 import com.warband.ai.Squad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
@@ -37,8 +38,9 @@ public final class RegroupGoal extends SquadGoal {
     @Override
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
-        if (regroupPos != null) {
-            moveTo(regroupPos);
+        if (regroupPos != null && moveTo(regroupPos)) {
+            WarbandDebug.event("REGROUP", mob, "center=" + regroupPos.getX() + " "
+                    + regroupPos.getY() + " " + regroupPos.getZ() + " members=" + squad.members().size());
         }
     }
 }

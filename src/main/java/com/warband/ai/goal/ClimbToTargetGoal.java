@@ -1,5 +1,6 @@
 package com.warband.ai.goal;
 
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import net.minecraft.world.entity.LivingEntity;
@@ -63,6 +64,13 @@ public final class ClimbToTargetGoal extends Goal implements WarbandGoal {
     @Override
     public boolean requiresUpdateEveryTick() {
         return true;
+    }
+
+    @Override
+    public void start() {
+        LivingEntity target = mob.getTarget();
+        WarbandDebug.event("CLIMB", mob, "rise=" + (target == null ? "?"
+                : String.format("%.1f", target.getY() - mob.getY())));
     }
 
     @Override
