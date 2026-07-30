@@ -303,6 +303,34 @@ survivor escape, then wait for the revenge patrol (or force it with
 - **Save compatibility is covered by unit tests** (`IllagerScarTest`), including
   grudges saved before scars existed, so no in-game check is needed for that.
 
+### C2e — Perception cues and stealth **[LOG] [EYES]**
+
+Needs a real player, so it cannot be driven from the console. Stand in the dark or
+crouch at the edge of a stamped mob's range.
+
+```
+/warband debug squad 0.9
+/time set night
+```
+
+Crouch and back away until they lose you, then approach again.
+
+- **PASS (log):** `EVENT=SUSPICIOUS mob=… player=…` when concealment is what stopped
+  them seeing you, `EVENT=ALERTED` when they lock on, and exactly one
+  `EVENT=LOST_TRACK` per encounter once nothing is hunting you.
+- **FAIL:** `SUSPICIOUS` firing constantly while you stand in the open — it should only
+  fire when a stealth modifier (crouch, darkness, invisibility) is the reason you are
+  unseen.
+- **FAIL:** repeated `LOST_TRACK` spam. It is owed once per alarm, not per mob.
+- **[EYES]** Does the mob visibly **stop and turn to look**? That is the tell for when
+  you can see it; the sound is the tell for when you cannot.
+- **[EYES]** Does the all-clear land as *relief*? That cue is the whole reason the
+  feature exists — without it hiding has tension but no resolution.
+- **[EYES]** Can you now feel that crouching does something? That was previously a real
+  but completely invisible mechanic.
+- Cue throttling is **per player** (one per 1.5s), not per mob, so a large squad should
+  not produce a chorus. Report it if it does.
+
 ### C3 — Explosion / warden avoidance **[LOG]**
 
 ```

@@ -48,10 +48,39 @@ public final class VisibilityRules {
         return mob.distanceToSqr(target) <= allowed * allowed;
     }
 
-    private static double tacticalSightRange(Mob mob, LivingEntity target) {
+    /**
+     * True when the <i>only</i> reason this target is unseen is a stealth modifier —
+     * it is in line of sight and inside the mob's unmodified follow range, but outside
+     * the range crouching, darkness or invisibility has cut it down to.
+     *
+     * <p>This is the moment stealth actually happens, and until now it happened in
+     * total silence. It is the signal {@link PerceptionCues} turns into a "something's
+     * there" reaction, which is what teaches players that
+     * {@link #canUseTacticalSight} subtracts at all.
+     */
+    public static boolean concealedNearMiss(Mob mob, LivingEntity target) {
+        if (target == null || !target.isAlive()) return false;
+        if (!mob.hasLineOfSight(target)) return false;
+        // Glowing overrides every penalty, so there is no concealment to notice.
+        if (target.hasEffect(MobEffects.GLOWING)) return false;
+
+        double base = baseSightRange(mob);
+        double allowed = tacticalSightRange(mob, target);
+        // No modifier in play: being merely far away is not a near miss.
+        if (allowed >= base) return false;
+
+        double distanceSqr = mob.distanceToSqr(target);
+        return distanceSqr > allowed * allowed && distanceSqr <= base * base;
+    }
+
+    private static double baseSightRange(Mob mob) {
         AttributeInstance followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
         double range = followRange == null ? 16.0 : followRange.getValue();
-        if (range <= 0.0) range = 16.0;
+        return range <= 0.0 ? 16.0 : range;
+    }
+
+    private static double tacticalSightRange(Mob mob, LivingEntity target) {
+        double range = baseSightRange(mob);
 
         double multiplier = 1.0;
         if (mob.hasEffect(MobEffects.DARKNESS)) multiplier = Math.min(multiplier, 0.20);

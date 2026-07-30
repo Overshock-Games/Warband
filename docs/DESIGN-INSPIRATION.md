@@ -41,7 +41,7 @@ behaviours — they are ways to make existing behaviour readable.
 | Source | Mechanic | Plugs into | Cost | Verdict |
 |---|---|---|---|---|
 | **F.E.A.R. / Halo** | Squad *barks*: enemies announce intent out loud ("flanking left") | `TacticalEffects.roleCue`, existing 30-tactic mask | Low | **SHIPPED** — `TacticalBarks` |
-| **Thief / Splinter Cell** | Three-state awareness — unaware → suspicious → alert, each with a tell | `VisibilityRules`, `Squad.lastKnownPos` | Low | **Take** |
+| **Thief / Splinter Cell** | Three-state awareness — unaware → suspicious → alert, each with a tell | `VisibilityRules`, `Squad.lastKnownPos` | Low | **SHIPPED** — `PerceptionCues` |
 | **Shadow of Mordor** | Nemesis *adaptation*: a survivor returns changed by how it nearly died | `IllagerGrudge` (already persists named survivors) | Low | **SHIPPED** — `IllagerScar` |
 | **Shadow of Mordor** | Reputation → pre-emptive fear; grunts flee a player who slaughtered their army | `FactionReputation` heat, `Squad.morale` | Low | **Take** |
 | **Left 4 Dead** | Boomer bile: a mark that *summons* the horde onto you | `Squad.alertTo`, `broadcastDistress`, `WitchSupportGoal` | Low | Strong |
@@ -85,7 +85,7 @@ Cost is genuinely low — the goals already call `logTactic(...)` at exactly the
 moments, so the hook points exist. This is the single biggest
 perceived-intelligence-per-line change available.
 
-## 2. Three-state awareness — Thief
+## 2. Three-state awareness — Thief *(shipped)*
 
 `VisibilityRules` already reduces detection for crouching, invisible and
 darkness-affected targets. **Players have no way to know that exists**, so stealth is
@@ -221,7 +221,11 @@ and it hands the player a power fantasy the mod currently only ever takes away.
    cosmetic, and the arrival message names what changed so the player can connect it
    to their own past tactics. Codec field is optional, so pre-1.4.0 saves keep their
    survivors.
-3. **Awareness states** — makes an existing invisible system playable.
+3. ~~**Awareness states**~~ — **shipped** as `PerceptionCues` + `SuspicionPauseGoal`.
+   Built lost-you-first as argued below. The suspicion trigger is
+   `VisibilityRules.concealedNearMiss`: in sight and inside the unmodified follow range,
+   but outside the range crouching or darkness cut it to — so the cue fires precisely
+   when concealment saved the player, which is what teaches the rule.
 4. **Reputation fear** — nearly free once heat is already tracked.
 5. Overwatch and flank rewards — give two existing tactics actual teeth.
 

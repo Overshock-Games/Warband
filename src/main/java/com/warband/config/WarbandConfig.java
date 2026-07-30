@@ -98,6 +98,11 @@ public final class WarbandConfig {
      * intent is audible instead of invisible.
      */
     public static boolean tacticalBarksEnabled = true;
+    /**
+     * If true, mobs signal when they half-notice a concealed player and when they
+     * lose track again, so the stealth rules in VisibilityRules are perceptible.
+     */
+    public static boolean perceptionCuesEnabled = true;
     public static boolean antiFarmEnabled = true;
     public static int antiFarmCrowdThreshold = 10;
     public static int antiFarmScanSeconds = 5;
@@ -296,6 +301,7 @@ public final class WarbandConfig {
         roleVisualsEnabled = parseBoolean(props, "roleVisualsEnabled", roleVisualsEnabled, logger);
         roleCuesEnabled = parseBoolean(props, "roleCuesEnabled", roleCuesEnabled, logger);
         tacticalBarksEnabled = parseBoolean(props, "tacticalBarksEnabled", tacticalBarksEnabled, logger);
+        perceptionCuesEnabled = parseBoolean(props, "perceptionCuesEnabled", perceptionCuesEnabled, logger);
         antiFarmEnabled = parseBoolean(props, "antiFarmEnabled", antiFarmEnabled, logger);
         antiFarmCrowdThreshold = parseInt(props, "antiFarmCrowdThreshold", antiFarmCrowdThreshold, 3, 128, logger);
         antiFarmScanSeconds = parseInt(props, "antiFarmScanSeconds", antiFarmScanSeconds, 1, 600, logger);
@@ -459,6 +465,9 @@ public final class WarbandConfig {
                 # If true, mobs sound off when committing to a tactic (advance, circle,
                 # withdraw, rally, lunge, search) so squad intent is audible.
                 tacticalBarksEnabled=%s
+                # If true, mobs react audibly when they half-notice you and when they
+                # lose track of you again, making crouch/darkness stealth perceptible.
+                perceptionCuesEnabled=%s
                 # If true, trapped/crowded farm mobs suppress drops and try to escape.
                 antiFarmEnabled=%s
                 antiFarmCrowdThreshold=%d
@@ -631,6 +640,7 @@ public final class WarbandConfig {
                     roleVisualsEnabled,
                     roleCuesEnabled,
                     tacticalBarksEnabled,
+                    perceptionCuesEnabled,
                     antiFarmEnabled,
                     antiFarmCrowdThreshold,
                     antiFarmScanSeconds,

@@ -34,6 +34,7 @@ import com.warband.ai.goal.SpiderLeapGoal;
 import com.warband.ai.goal.SpiderWebGoal;
 import com.warband.ai.goal.StickyPathGoal;
 import com.warband.ai.goal.WaterCommitGoal;
+import com.warband.ai.goal.SuspicionPauseGoal;
 import com.warband.ai.goal.WarbandDoorGoal;
 import com.warband.ai.goal.WarbandGoal;
 import com.warband.ai.goal.WitchSupportGoal;
@@ -521,6 +522,10 @@ public final class SquadCoordinator {
         // Universal: use a ladder you are already standing on. No goal flags, so it
         // layers under the attack goal's pathing rather than fighting it.
         accessor.warband$goalSelector().addGoal(2, new ClimbToTargetGoal(mob));
+        // The visible half of a suspicious state. Priority 1 so it outranks the vanilla
+        // stroll goals it is meant to interrupt; it requires no target, so a mob that
+        // has actually found someone is never held up by it.
+        accessor.warband$goalSelector().addGoal(1, new SuspicionPauseGoal(mob));
         // Doors, for the mobs already treated as intelligent enough to retreat.
         // Requires opening up door pathing first, or the goal can never trigger —
         // it only fires when the current path already routes onto a door block.
