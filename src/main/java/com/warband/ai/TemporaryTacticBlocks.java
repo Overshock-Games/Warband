@@ -4,6 +4,9 @@ import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -89,10 +92,45 @@ public final class TemporaryTacticBlocks {
             WarbandDebug.event("SIEGE_RESTORE_DEFERRED", posDetail(entry.pos) + " reason=entity_inside");
             return false;
         }
+        if (!stillPartOfSomething(entry.level, entry.pos)) {
+            WarbandDebug.event("SIEGE_RESTORE_SKIPPED", posDetail(entry.pos) + " reason=structure_gone");
+            return true;
+        }
         entry.level.setBlock(entry.pos, entry.restoreState, BLOCK_UPDATE);
+        // A block silently popping back reads as a glitch. Give it a small, quiet cue
+        // so a reseal is legible as something the world did on purpose.
+        entry.level.playSound(null, entry.pos, entry.restoreState.getSoundType().getPlaceSound(),
+                SoundSource.BLOCKS, 0.45f, 0.85f);
+        entry.level.sendParticles(ParticleTypes.CRIT,
+                entry.pos.getX() + 0.5, entry.pos.getY() + 0.5, entry.pos.getZ() + 0.5,
+                4, 0.25, 0.25, 0.25, 0.0);
         WarbandDebug.event("SIEGE_RESTORE", posDetail(entry.pos)
                 + " block=" + BuiltInRegistries.BLOCK.getKey(entry.restoreState.getBlock()));
         return true;
+    }
+
+    /**
+     * Whether restoring here would repair a hole rather than conjure a floating block.
+     *
+     * <p>Restoring was originally context-free: it only asked whether the exact spot was
+     * empty. That is fine for a breach in a wall that is still standing, but absurd when
+     * the structure has since gone — a mob mines the base of a pillar, the player takes
+     * the pillar down, and ninety seconds later a single block reappears in mid-air.
+     *
+     * <p>Requiring two solid orthogonal neighbours is a cheap proxy for "this was part of
+     * something that still exists". A wall breach keeps three or four of its neighbours,
+     * a hole in a floor keeps several, while an isolated block or the remains of a
+     * dismantled pillar keeps one or none and is left alone.
+     */
+    private static boolean stillPartOfSomething(ServerLevel level, BlockPos pos) {
+        int solidNeighbours = 0;
+        for (Direction direction : Direction.values()) {
+            if (!level.getBlockState(pos.relative(direction)).isAir()) {
+                solidNeighbours++;
+                if (solidNeighbours >= 2) return true;
+            }
+        }
+        return false;
     }
 
     private static String posDetail(BlockPos pos) {

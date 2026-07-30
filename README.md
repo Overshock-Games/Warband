@@ -6,11 +6,13 @@ Warband makes hostile mobs smarter, not spongier. Regions learn from the players
 
 - Tactical mob squads with leaders, bruisers, marksmen, support roles, morale, regrouping, flanking, pressure, and last-known-position searches
 - Regional or distance-based difficulty with depth scaling, dimension pressure, death mercy, and multiplayer presence
-- Mob-family tactics: skeleton smoke screens and dusk perches, spider webs and leap-strikes, creeper stalking, zombie surrounds and stacks, blaze high-ground pressure, witch potion support, piglin morale, hoglin stampedes, phantom harassment, natural jockey acquisition, and more
+- Mob-family tactics: skeleton smoke screens and dusk perches, spider webs and leap-strikes, creeper stalking, zombie surrounds, blaze high-ground pressure, witch potion support, piglin morale, hoglin stampedes, phantom harassment, natural jockey acquisition, and more
 - Multiplayer-aware pressure with threat memory, anti-dogpile targeting, local smart-mob budgets, death mercy areas, and limited shared squad intel
 - Illager factions with doctrines, banners, named ranks, mansion/outpost strongholds, Warmarshals, faction territories, grudges, heat that decays and shifts with rival kills, bounty hunters, raid finale boss summons, and rival interceptions
+- Nemesis scars: a named illager that escapes you comes back adapted to how you fought it — burn its squad and it returns fire-immune, shoot it and it returns helmeted
 - Boss upgrades, anti-farm behavior, golem support tools, goat horn interactions, debug commands, and a broad `config/warband.properties` tuning surface
-- Siege and anti-cheese: squads mine through walls, creepers breach shelters, mobs climb ladders, scatter from creepers and TNT, and break out of boats. Breaches **heal themselves** by default — reinforce with obsidian or metal and they hold
+- Siege and anti-cheese: squads mine through walls, creepers breach shelters, illagers open doors, mobs climb ladders, scatter from creepers and TNT, and break out of boats. Breaches **heal themselves** by default — reinforce with obsidian or metal and they hold
+- Audible intent: mobs sound off when they commit to a tactic, react when they half-notice a hidden player, and give an all-clear once they lose your trail — so crouching and darkness are something you can play around instead of guess at
 - Modded mobs can be opted into Warband's behaviour pools via `customMobPools`, gaining the matching tactics and roles and squadding up with their vanilla counterparts
 
 ## Full Documentation -> [Wiki](https://github.com/Overshock-Studios/Warband/wiki)
