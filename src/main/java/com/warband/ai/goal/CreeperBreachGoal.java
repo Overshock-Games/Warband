@@ -28,6 +28,14 @@ import java.util.EnumSet;
  * creepers do not detonate on scenery while walking to someone in the open. And it
  * requires {@code mobGriefing}, since the whole point is the crater — a creeper
  * blowing up harmlessly against a wall would be worse than not trying.
+ *
+ * <p><b>The one exception to reversible siege damage.</b> This detonation is an
+ * ordinary vanilla explosion, so the hole it leaves is <i>permanent</i> regardless of
+ * {@code siegeMiningPermanent}, and it can take out blocks the siege block tag
+ * excludes — an iron door among them. That is deliberate rather than an oversight:
+ * the mod is not making explosions more destructive, only helping the creeper reach
+ * a wall it could already have blown up. Players who want no lasting damage at all
+ * should turn {@code creeperBreachEnabled} off, since no restore ledger covers it.
  */
 public final class CreeperBreachGoal extends SquadGoal {
 

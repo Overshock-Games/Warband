@@ -221,6 +221,11 @@ Seal yourself in a 1-thick dirt box.
 
 - **PASS (log):** `EVENT=CREEPER_BREACH mob=creeper id=… diff=0.90`
 - **[EYES]** Does it walk to the wall and detonate against it, or wander off?
+- **⚠ Note:** this is the **one exception to reversible damage**. The blast is an
+  ordinary vanilla explosion, so its crater is permanent no matter what
+  `siegeMiningPermanent` is set to, and it can remove blocks the siege tag excludes —
+  including an iron door. Turn `creeperBreachEnabled` off if a world must take no
+  lasting damage at all. Worth deciding explicitly before release.
 
 ### C2 — Ladder climbing **[LOG] [EYES]**
 
