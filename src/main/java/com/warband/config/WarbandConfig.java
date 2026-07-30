@@ -139,6 +139,11 @@ public final class WarbandConfig {
     /** Smart diggers mine through blocks to reach a target they cannot path to. */
     public static boolean siegeMiningEnabled = true;
     /**
+     * If true, siege mining stands down when a mod dedicated to mob block manipulation
+     * is present. See {@link com.warband.compat.ZombieBreakAndBuildCompat}.
+     */
+    public static boolean siegeMiningDeferToOtherMods = true;
+    /**
      * If true, mined blocks stay gone. Off by default: Warband is a server-side
      * drop-in for existing worlds, so the point of a breach is to force the fight,
      * not to permanently eat someone's base.
@@ -326,6 +331,7 @@ public final class WarbandConfig {
         naturalJockeysEnabled = parseBoolean(props, "naturalJockeysEnabled", naturalJockeysEnabled, logger);
         naturalJockeyMinDifficulty = parseDouble(props, "naturalJockeyMinDifficulty", naturalJockeyMinDifficulty, 0.0, 1.0, logger);
         siegeMiningEnabled = parseBoolean(props, "siegeMiningEnabled", siegeMiningEnabled, logger);
+        siegeMiningDeferToOtherMods = parseBoolean(props, "siegeMiningDeferToOtherMods", siegeMiningDeferToOtherMods, logger);
         siegeMiningPermanent = parseBoolean(props, "siegeMiningPermanent", siegeMiningPermanent, logger);
         siegeMiningRestoreSeconds = parseInt(props, "siegeMiningRestoreSeconds", siegeMiningRestoreSeconds, 1, 100_000, logger);
         siegeMiningBlockTag = props.getProperty("siegeMiningBlockTag", siegeMiningBlockTag).trim();
@@ -515,6 +521,10 @@ public final class WarbandConfig {
                 # ── Siege & anti-cheese ──────────────────────────────────────────
                 # If true, smart diggers mine through blocks to reach a target they cannot path to.
                 siegeMiningEnabled=%s
+                # If true, Warband stops digging when a dedicated mob block-breaking mod
+                # (currently Zombie Break & Build) is installed, so the two do not both
+                # tear at the same wall. Set false to run both.
+                siegeMiningDeferToOtherMods=%s
                 # If true, mined blocks stay gone. Off by default: a breach exists to force the
                 # fight, not to permanently eat a base you added this mod to.
                 siegeMiningPermanent=%s
@@ -662,6 +672,7 @@ public final class WarbandConfig {
                     naturalJockeysEnabled,
                     naturalJockeyMinDifficulty,
                     siegeMiningEnabled,
+                    siegeMiningDeferToOtherMods,
                     siegeMiningPermanent,
                     siegeMiningRestoreSeconds,
                     siegeMiningBlockTag,

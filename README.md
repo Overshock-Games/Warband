@@ -32,6 +32,7 @@ Warband is server-side and can be added to an existing world.
 - **Structure mods**: mansions and outposts are detected by structure tag, so compatible pillager strongholds can opt in.
 - **[Ascendant Armory](https://modrinth.com/mod/ascendant-armory)**: supported from the Ascendant Armory side. Warband-stamped mobs can influence core drops when both mods are installed.
 - **[True Ending](https://modrinth.com/mod/true-ending)**: auto-detected. When loaded, Warband's Ender Dragon phase abilities are suppressed so True Ending's dragon overhaul runs unobstructed; Wither abilities are unaffected.
+- **[Zombie Break & Build](https://modrinth.com/mod/zombies-break-and-build)**: auto-detected. When loaded, Warband's siege mining stands down so the two don't both dig at the same wall — that mod owns mob block manipulation. Creeper breaching, and everything else, is unaffected.
 - **[Stormie's Spiders](https://modrinth.com/mod/stormies-spiders)**: auto-detected. When loaded, Warband defers its ceiling-crawl goal to Stormie's realistic climbing; web throws, sticky paths, and leap-strikes still apply.
 
 ## License

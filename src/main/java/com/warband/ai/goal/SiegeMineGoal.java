@@ -3,12 +3,14 @@ package com.warband.ai.goal;
 import com.warband.ai.Squad;
 import com.warband.ai.TemporaryTacticBlocks;
 import com.warband.WarbandDebug;
+import com.warband.compat.ZombieBreakAndBuildCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
@@ -18,12 +20,12 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 
 /**
  * Breaks through a wall when the target cannot be reached any other way.
@@ -57,12 +59,19 @@ public final class SiegeMineGoal extends SquadGoal {
     private static final double MAX_TARGET_DISTANCE = 24.0;
     /** Re-evaluate (and re-path) at most this often; path creation is not free. */
     private static final int DECISION_INTERVAL = 30;
-    /** Ticks to chew through one block at minimum difficulty. */
+    /** Ticks to chew through an average block at minimum difficulty. */
     private static final int BASE_DIG_TICKS = 60;
-    /** Ticks to chew through one block at difficulty 1.0. */
+    /** Ticks to chew through an average block at difficulty 1.0. */
     private static final int FAST_DIG_TICKS = 24;
+    /** Vanilla destroy speed treated as "average" — cobblestone is 2.0. */
+    private static final float REFERENCE_HARDNESS = 2.0f;
+    /** Clamps on the hardness factor, so nothing is instant and nothing takes forever. */
+    private static final double MIN_HARDNESS_FACTOR = 0.4;
+    private static final double MAX_HARDNESS_FACTOR = 2.5;
     /** Blocks removed per activation, so a breach is a hole and not a tunnel. */
     private static final int MAX_BLOCKS_PER_BREACH = 4;
+    /** How far ahead the hitbox is swept when looking for the obstruction. */
+    private static final double STEP_PROBE = 0.9;
 
     private BlockPos digTarget;
     private @Nullable LivingEntity siegeTarget;
@@ -79,6 +88,12 @@ public final class SiegeMineGoal extends SquadGoal {
     @Override
     public boolean canUse() {
         if (!WarbandConfig.siegeMiningEnabled) return false;
+        // Zombie Break & Build owns mob block manipulation far more thoroughly than one
+        // Warband behaviour can, so hand the domain over rather than digging alongside it.
+        if (WarbandConfig.siegeMiningDeferToOtherMods
+                && ZombieBreakAndBuildCompat.isLoaded()) {
+            return false;
+        }
         if (frightened()) return false;
         if (!(mob.level() instanceof ServerLevel level)) return false;
         if (!Boolean.TRUE.equals(level.getGameRules().get(GameRules.MOB_GRIEFING))) return false;
@@ -97,7 +112,7 @@ public final class SiegeMineGoal extends SquadGoal {
         digTarget = chooseBlock(level, goal);
         if (digTarget == null) return false;
         digTicks = 0;
-        digTicksNeeded = digTicksFor(MobData.get(mob).difficulty());
+        digTicksNeeded = digTicksFor(MobData.get(mob).difficulty(), level, digTarget);
         return true;
     }
 
@@ -172,9 +187,23 @@ public final class SiegeMineGoal extends SquadGoal {
         blocksBroken = 0;
     }
 
-    private int digTicksFor(double difficulty) {
+    /**
+     * Dig time from difficulty <i>and</i> the block's own hardness.
+     *
+     * <p>A flat timer meant dirt and stone brick fell at identical speed, which reads as
+     * arbitrary and made "reinforce with something tougher" a binary choice between
+     * breakable and not. Scaling by vanilla destroy speed makes soft cover give way fast
+     * and hard cover genuinely cost the attacker time, so partial reinforcement pays off
+     * proportionally.
+     */
+    private int digTicksFor(double difficulty, ServerLevel level, BlockPos pos) {
         double t = Math.max(0.0, Math.min(1.0, (difficulty - MIN_DIFFICULTY) / (1.0 - MIN_DIFFICULTY)));
-        return (int) Math.round(BASE_DIG_TICKS + (FAST_DIG_TICKS - BASE_DIG_TICKS) * t);
+        double base = BASE_DIG_TICKS + (FAST_DIG_TICKS - BASE_DIG_TICKS) * t;
+
+        float hardness = level.getBlockState(pos).getDestroySpeed(level, pos);
+        double factor = Math.max(MIN_HARDNESS_FACTOR,
+                Math.min(MAX_HARDNESS_FACTOR, hardness / REFERENCE_HARDNESS));
+        return Math.max(8, (int) Math.round(base * factor));
     }
 
     /** Where the squad is trying to get to: a seen target, else the shared last-known position. */
@@ -197,39 +226,78 @@ public final class SiegeMineGoal extends SquadGoal {
     }
 
     /**
-     * The obstruction to remove: the block directly in the way, preferring head
-     * height so the mob opens a gap it can walk through. Falls back to digging up or
-     * down when the target is mostly above or below.
+     * The block that actually blocks this mob: the mob's own hitbox is stepped toward
+     * the target, and the nearest block whose <b>collision shape genuinely intersects</b>
+     * that swept box wins.
+     *
+     * <p>The previous version guessed a single position one step ahead at foot and head
+     * height. That is wrong in several ordinary situations, and each one wastes a dig on a
+     * block that was never in the way:
+     * <ul>
+     *   <li>wide mobs — a ravager is nearly two blocks across, so a centre-line guess
+     *       misses whatever its shoulders are actually caught on,</li>
+     *   <li>partial blocks — a fence or slab blocks movement while the guessed position
+     *       lands in the air above it,</li>
+     *   <li>diagonal approaches, where the obstruction is not on either axis,</li>
+     *   <li>blocks with no collision at all, which are not obstructions no matter what
+     *       the block tag says.</li>
+     * </ul>
+     *
+     * <p>Falls back to digging up or down when the target is mostly above or below and
+     * nothing lateral is in the way.
      */
     private @Nullable BlockPos chooseBlock(ServerLevel level, BlockPos goal) {
         Vec3 toGoal = Vec3.atCenterOf(goal).subtract(mob.position());
         Vec3 flat = new Vec3(toGoal.x, 0.0, toGoal.z);
-        BlockPos feet = mob.blockPosition();
-
-        List<BlockPos> candidates = new ArrayList<>(4);
         if (flat.lengthSqr() > 0.01) {
-            Vec3 step = flat.normalize();
-            BlockPos ahead = BlockPos.containing(
-                    mob.getX() + step.x, mob.getY(), mob.getZ() + step.z);
-            candidates.add(ahead.above());
-            candidates.add(ahead);
-        }
-        double rise = goal.getY() - mob.getY();
-        if (rise > 2.0) {
-            candidates.add(feet.above(2));
-        } else if (rise < -2.0) {
-            candidates.add(feet.below());
+            BlockPos blocking = nearestBlockingBlock(level, flat.normalize().scale(STEP_PROBE));
+            if (blocking != null) return blocking;
         }
 
-        for (BlockPos candidate : candidates) {
-            if (isBreachable(level, candidate)) return candidate.immutable();
+        BlockPos feet = mob.blockPosition();
+        double rise = goal.getY() - mob.getY();
+        BlockPos vertical = rise > 2.0 ? feet.above(2) : rise < -2.0 ? feet.below() : null;
+        return vertical != null && isBreachable(level, vertical) ? vertical.immutable() : null;
+    }
+
+    /**
+     * Sweeps the mob's bounding box by {@code offset} and returns the nearest breachable
+     * block whose collision shape overlaps the swept box.
+     */
+    private @Nullable BlockPos nearestBlockingBlock(ServerLevel level, Vec3 offset) {
+        AABB swept = mob.getBoundingBox().move(offset);
+        Vec3 origin = mob.getBoundingBox().getCenter();
+
+        BlockPos nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+        for (int x = Mth.floor(swept.minX); x <= Mth.floor(swept.maxX - 1.0E-7); x++) {
+            for (int y = Mth.floor(swept.minY); y <= Mth.floor(swept.maxY - 1.0E-7); y++) {
+                for (int z = Mth.floor(swept.minZ); z <= Mth.floor(swept.maxZ - 1.0E-7); z++) {
+                    cursor.set(x, y, z);
+                    if (!isBreachable(level, cursor)) continue;
+
+                    VoxelShape collision = level.getBlockState(cursor).getCollisionShape(level, cursor);
+                    if (collision.isEmpty()) continue;
+                    if (!collision.bounds().move(x, y, z).intersects(swept)) continue;
+
+                    double distance = origin.distanceToSqr(x + 0.5, y + 0.5, z + 0.5);
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        nearest = cursor.immutable();
+                    }
+                }
+            }
         }
-        return null;
+        return nearest;
     }
 
     private boolean isBreachable(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) return false;
+        // Never immediately re-mine something we only just resealed.
+        if (TemporaryTacticBlocks.recentlyRestored(level, pos)) return false;
         // Never chew on the unbreakable; also skips bedrock/barriers generically.
         if (state.getDestroySpeed(level, pos) < 0.0F) return false;
         if (state.is(BlockTags.WITHER_IMMUNE)) return false;

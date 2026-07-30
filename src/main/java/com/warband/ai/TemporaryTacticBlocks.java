@@ -17,8 +17,10 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tracks temporary block changes made by Warband tactics and undoes them later.
@@ -38,7 +40,19 @@ import java.util.List;
 public final class TemporaryTacticBlocks {
 
     private static final int BLOCK_UPDATE = 3;
+    /**
+     * How long a resealed block is immune to being mined again.
+     *
+     * <p>Without this, siege mining and the reseal form an endless loop: dig the block,
+     * wait out the restore, dig the identical block again, forever, with block-break
+     * audio every cycle. A short immunity turns a walled-in standoff into "the breach
+     * stays open while they are working on it" instead of Sisyphus with a pickaxe.
+     */
+    private static final int REBREAK_IMMUNITY_TICKS = 20 * 45;
+
     private static final List<Entry> ENTRIES = new ArrayList<>();
+    /** Recently resealed positions, keyed by packed BlockPos, valued by expiry tick. */
+    private static final Map<Long, Long> RECENTLY_RESTORED = new HashMap<>();
 
     private TemporaryTacticBlocks() {
     }
@@ -97,6 +111,7 @@ public final class TemporaryTacticBlocks {
             return true;
         }
         entry.level.setBlock(entry.pos, entry.restoreState, BLOCK_UPDATE);
+        RECENTLY_RESTORED.put(entry.pos.asLong(), entry.level.getGameTime() + REBREAK_IMMUNITY_TICKS);
         // A block silently popping back reads as a glitch. Give it a small, quiet cue
         // so a reseal is legible as something the world did on purpose.
         entry.level.playSound(null, entry.pos, entry.restoreState.getSoundType().getPlaceSound(),
@@ -131,6 +146,18 @@ public final class TemporaryTacticBlocks {
             }
         }
         return false;
+    }
+
+    /**
+     * True while this position must not be mined again, because Warband only just put
+     * it back. Also prunes its own expired entries, so the map cannot grow unbounded.
+     */
+    public static boolean recentlyRestored(ServerLevel level, BlockPos pos) {
+        if (RECENTLY_RESTORED.isEmpty()) return false;
+        long now = level.getGameTime();
+        RECENTLY_RESTORED.values().removeIf(expiry -> expiry <= now);
+        Long expiry = RECENTLY_RESTORED.get(pos.asLong());
+        return expiry != null && expiry > now;
     }
 
     private static String posDetail(BlockPos pos) {
