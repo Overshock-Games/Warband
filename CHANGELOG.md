@@ -2,7 +2,7 @@
 
 ## 1.4.0
 
-Last release for 26.1.2. Later updates target 26.2.
+Last major release for 26.1.2.
 
 - Added siege mining: zombies, illagers and ravagers break through walls to reach a target they cannot path to. Breaches heal themselves after `siegeMiningRestoreSeconds` (90 by default), so a siege forces a fight without permanently damaging your base; set `siegeMiningPermanent=true` to keep the damage. Only blocks in the `siegeMiningBlockTag` can be broken — obsidian, deepslate, metal blocks, containers and beds are excluded, so reinforcing a wall keeps it standing. Respects `mobGriefing`, and digging shows block cracks and sound before a block gives way.
 - Added creeper breaching: a creeper that cannot reach you closes on the wall in between and detonates against it.
