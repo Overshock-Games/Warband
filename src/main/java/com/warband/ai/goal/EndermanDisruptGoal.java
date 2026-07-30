@@ -51,7 +51,7 @@ public final class EndermanDisruptGoal extends SquadGoal {
             teleported = teleportNear(disruptTarget);
         }
         if (placed || teleported) {
-            logTactic(Tactic.ENDERMAN_DISRUPT);
+            announceTactic(Tactic.ENDERMAN_DISRUPT);
             TacticalEffects.signal(level, mob);
         }
     }

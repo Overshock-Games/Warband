@@ -25,8 +25,12 @@ public final class WarbandConfig {
     public static DifficultyMode difficultyMode = DifficultyMode.REGIONAL;
     /** Blocks from world spawn that stay fully vanilla (difficulty 0). */
     public static int safeRadius = 96;
-    /** REGIONAL mode: blocks after safeRadius until learned pressure reaches full strength. */
-    public static int regionalSpawnRampBlocks = 32;
+    /**
+     * REGIONAL mode: blocks after safeRadius until learned pressure reaches full
+     * strength. A short ramp reads as a difficulty cliff — at 32 the world went
+     * from fully calm to fully hostile over one screen's worth of travel.
+     */
+    public static int regionalSpawnRampBlocks = 256;
     /** Distance from spawn at which difficulty caps (DISTANCE mode). */
     public static int maxDifficultyRadius = 4096;
     /** Optional mercy window after death. 0 disables relief and keeps regional pressure honest. */
@@ -89,6 +93,16 @@ public final class WarbandConfig {
     public static double directorRelaxEnhancementChance = 0.15;
     public static boolean roleVisualsEnabled = true;
     public static boolean roleCuesEnabled = true;
+    /**
+     * If true, mobs make a short sound when they commit to a tactic, so squad
+     * intent is audible instead of invisible.
+     */
+    public static boolean tacticalBarksEnabled = true;
+    /**
+     * If true, mobs signal when they half-notice a concealed player and when they
+     * lose track again, so the stealth rules in VisibilityRules are perceptible.
+     */
+    public static boolean perceptionCuesEnabled = true;
     public static boolean antiFarmEnabled = true;
     public static int antiFarmCrowdThreshold = 10;
     public static int antiFarmScanSeconds = 5;
@@ -103,6 +117,11 @@ public final class WarbandConfig {
     public static boolean extendedMobTacticsEnabled = true;
     /** Comma-separated tactic names to suppress while keeping other smart AI active. */
     public static String disabledTactics = "";
+    /**
+     * Opts modded mobs into Warband behaviour pools. See
+     * {@link com.warband.entity.MobPools} for the format.
+     */
+    public static String customMobPools = "";
     private static EnumSet<Tactic> disabledTacticSet = EnumSet.noneOf(Tactic.class);
     /** If true, log each Warband tactic execution for debugging and balance passes. */
     public static boolean debugTacticLogs = false;
@@ -116,6 +135,42 @@ public final class WarbandConfig {
     public static boolean naturalJockeysEnabled = true;
     /** Difficulty required before a mob is "smart enough" to form a jockey on its own. */
     public static double naturalJockeyMinDifficulty = 0.35;
+    // ── Siege & anti-cheese ─────────────────────────────────────────────────
+    /** Smart diggers mine through blocks to reach a target they cannot path to. */
+    public static boolean siegeMiningEnabled = true;
+    /**
+     * If true, mined blocks stay gone. Off by default: Warband is a server-side
+     * drop-in for existing worlds, so the point of a breach is to force the fight,
+     * not to permanently eat someone's base.
+     */
+    public static boolean siegeMiningPermanent = false;
+    /** Seconds before a non-permanent breach seals itself. */
+    public static int siegeMiningRestoreSeconds = 90;
+    /** Mobs may only breach a block listed in this block tag. */
+    public static String siegeMiningBlockTag = "warband:siege_breakable";
+    /** Mobs climb ladders and vines to reach a target. */
+    public static boolean climbableBlocksEnabled = true;
+    /** Mobs scatter from swelling creepers, lit TNT, and wardens. */
+    public static boolean explosionAvoidanceEnabled = true;
+    /** Trapped mobs break the boat or minecart being used to park them. */
+    public static boolean vehicleEscapeEnabled = true;
+    /** Smart humanoids open (rather than only break) wooden doors and gates. */
+    public static boolean doorOpeningEnabled = true;
+    /** Creepers that cannot reach a target detonate against the wall in the way. */
+    public static boolean creeperBreachEnabled = true;
+    /** Difficulty-scaled shot cadence and accuracy for bow/crossbow users. */
+    public static boolean rangedTuningEnabled = true;
+    /** Maximum share of vanilla shot inaccuracy removed at difficulty 1.0. */
+    public static double rangedAccuracyBonusMax = 0.50;
+    /** Maximum share of vanilla shot interval removed at difficulty 1.0. */
+    public static double rangedCadenceBonusMax = 0.35;
+    /** Ghasts fire short fireball volleys instead of single shots. */
+    public static boolean ghastVolleyEnabled = true;
+    /** Blazes vary fireball timing and spread instead of a fixed pattern. */
+    public static boolean blazeFireballVariationEnabled = true;
+    /** Silverfish call nearby silverfish when hurt. */
+    public static boolean silverfishReinforcementsEnabled = true;
+
     /** Active raiders pillage every animal in range (leashed, named, tamed, baby — the lot) once no village defenders are left. */
     public static boolean raidPredationEnabled = true;
     /** High-ominous raids summon a faction bounty hunter during the final wave to finish the player personally. */
@@ -155,15 +210,46 @@ public final class WarbandConfig {
     // ── Items ──────────────────────────────────────────────────────────────
     public static boolean goatHornCommandEnabled = true;
 
-    private static final Path CONFIG_PATH = Path.of("config", "warband.properties");
+    private static Path configPath;
 
     private WarbandConfig() {
     }
 
+    /**
+     * Absolute path to {@code config/warband.properties}, resolved through the
+     * loader rather than the process working directory.
+     *
+     * <p>A bare relative path resolves against wherever the JVM was launched
+     * from, which is only the game directory by luck. Dedicated servers started
+     * from a parent directory (or via a wrapper script) read and wrote a
+     * <i>different</i> file than the one in the pack's {@code config/} folder,
+     * so edits looked like they were silently discarded.
+     *
+     * <p>Falls back to the old relative path when no loader is present, so this
+     * class stays usable from plain unit tests.
+     */
+    private static Path configPath() {
+        if (configPath == null) {
+            try {
+                configPath = net.fabricmc.loader.api.FabricLoader.getInstance()
+                        .getConfigDir().resolve("warband.properties");
+            } catch (Throwable ignored) {
+                configPath = Path.of("config", "warband.properties");
+            }
+        }
+        return configPath;
+    }
+
+    /** Where the config actually lives, for command feedback. */
+    public static String configLocation() {
+        return configPath().toString();
+    }
+
     public static void load(Logger logger) {
+        Path path = configPath();
         Properties props = new Properties();
-        if (Files.exists(CONFIG_PATH)) {
-            try (Reader r = Files.newBufferedReader(CONFIG_PATH, StandardCharsets.UTF_8)) {
+        if (Files.exists(path)) {
+            try (Reader r = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
                 props.load(r);
             } catch (IOException e) {
                 logger.error("[Warband] Failed to read config, using defaults", e);
@@ -214,6 +300,8 @@ public final class WarbandConfig {
         directorRelaxEnhancementChance = parseDouble(props, "directorRelaxEnhancementChance", directorRelaxEnhancementChance, 0.0, 1.0, logger);
         roleVisualsEnabled = parseBoolean(props, "roleVisualsEnabled", roleVisualsEnabled, logger);
         roleCuesEnabled = parseBoolean(props, "roleCuesEnabled", roleCuesEnabled, logger);
+        tacticalBarksEnabled = parseBoolean(props, "tacticalBarksEnabled", tacticalBarksEnabled, logger);
+        perceptionCuesEnabled = parseBoolean(props, "perceptionCuesEnabled", perceptionCuesEnabled, logger);
         antiFarmEnabled = parseBoolean(props, "antiFarmEnabled", antiFarmEnabled, logger);
         antiFarmCrowdThreshold = parseInt(props, "antiFarmCrowdThreshold", antiFarmCrowdThreshold, 3, 128, logger);
         antiFarmScanSeconds = parseInt(props, "antiFarmScanSeconds", antiFarmScanSeconds, 1, 600, logger);
@@ -229,12 +317,29 @@ public final class WarbandConfig {
         extendedMobTacticsEnabled = parseBoolean(props, "extendedMobTacticsEnabled", extendedMobTacticsEnabled, logger);
         disabledTactics = props.getProperty("disabledTactics", disabledTactics).trim();
         disabledTacticSet = parseTacticSet(disabledTactics, logger);
+        customMobPools = props.getProperty("customMobPools", customMobPools).trim();
+        com.warband.entity.MobPools.load(customMobPools, logger);
         debugTacticLogs = parseBoolean(props, "debugTacticLogs", debugTacticLogs, logger);
         seekShelterEnabled = parseBoolean(props, "seekShelterEnabled", seekShelterEnabled, logger);
         endermanProvokeEnabled = parseBoolean(props, "endermanProvokeEnabled", endermanProvokeEnabled, logger);
         spawnerDifficultyFloor = parseDouble(props, "spawnerDifficultyFloor", spawnerDifficultyFloor, 0.0, 1.0, logger);
         naturalJockeysEnabled = parseBoolean(props, "naturalJockeysEnabled", naturalJockeysEnabled, logger);
         naturalJockeyMinDifficulty = parseDouble(props, "naturalJockeyMinDifficulty", naturalJockeyMinDifficulty, 0.0, 1.0, logger);
+        siegeMiningEnabled = parseBoolean(props, "siegeMiningEnabled", siegeMiningEnabled, logger);
+        siegeMiningPermanent = parseBoolean(props, "siegeMiningPermanent", siegeMiningPermanent, logger);
+        siegeMiningRestoreSeconds = parseInt(props, "siegeMiningRestoreSeconds", siegeMiningRestoreSeconds, 1, 100_000, logger);
+        siegeMiningBlockTag = props.getProperty("siegeMiningBlockTag", siegeMiningBlockTag).trim();
+        climbableBlocksEnabled = parseBoolean(props, "climbableBlocksEnabled", climbableBlocksEnabled, logger);
+        explosionAvoidanceEnabled = parseBoolean(props, "explosionAvoidanceEnabled", explosionAvoidanceEnabled, logger);
+        vehicleEscapeEnabled = parseBoolean(props, "vehicleEscapeEnabled", vehicleEscapeEnabled, logger);
+        doorOpeningEnabled = parseBoolean(props, "doorOpeningEnabled", doorOpeningEnabled, logger);
+        creeperBreachEnabled = parseBoolean(props, "creeperBreachEnabled", creeperBreachEnabled, logger);
+        rangedTuningEnabled = parseBoolean(props, "rangedTuningEnabled", rangedTuningEnabled, logger);
+        rangedAccuracyBonusMax = parseDouble(props, "rangedAccuracyBonusMax", rangedAccuracyBonusMax, 0.0, 1.0, logger);
+        rangedCadenceBonusMax = parseDouble(props, "rangedCadenceBonusMax", rangedCadenceBonusMax, 0.0, 0.9, logger);
+        ghastVolleyEnabled = parseBoolean(props, "ghastVolleyEnabled", ghastVolleyEnabled, logger);
+        blazeFireballVariationEnabled = parseBoolean(props, "blazeFireballVariationEnabled", blazeFireballVariationEnabled, logger);
+        silverfishReinforcementsEnabled = parseBoolean(props, "silverfishReinforcementsEnabled", silverfishReinforcementsEnabled, logger);
         raidPredationEnabled = parseBoolean(props, "raidPredationEnabled", raidPredationEnabled, logger);
         raidFinaleBountyEnabled = parseBoolean(props, "raidFinaleBountyEnabled", raidFinaleBountyEnabled, logger);
         raidRivalInterceptEnabled = parseBoolean(props, "raidRivalInterceptEnabled", raidRivalInterceptEnabled, logger);
@@ -268,11 +373,12 @@ public final class WarbandConfig {
     }
 
     public static void save(Logger logger) {
+        Path path = configPath();
         try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            Files.writeString(CONFIG_PATH, toPropertiesString(), StandardCharsets.UTF_8);
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, toPropertiesString(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            logger.error("[Warband] Failed to save config", e);
+            logger.error("[Warband] Failed to save config to {}", path, e);
         }
     }
 
@@ -356,6 +462,12 @@ public final class WarbandConfig {
                 roleVisualsEnabled=%s
                 # If true, role assignment plays a restrained vanilla mob cue.
                 roleCuesEnabled=%s
+                # If true, mobs sound off when committing to a tactic (advance, circle,
+                # withdraw, rally, lunge, search) so squad intent is audible.
+                tacticalBarksEnabled=%s
+                # If true, mobs react audibly when they half-notice you and when they
+                # lose track of you again, making crouch/darkness stealth perceptible.
+                perceptionCuesEnabled=%s
                 # If true, trapped/crowded farm mobs suppress drops and try to escape.
                 antiFarmEnabled=%s
                 antiFarmCrowdThreshold=%d
@@ -378,6 +490,16 @@ public final class WarbandConfig {
                 extendedMobTacticsEnabled=%s
                 # Comma-separated tactic names to disable, e.g. SPIDER_WEB,CEILING_CRAWL,RANGED_REPOSITION,ENDERMAN_DISRUPT.
                 disabledTactics=%s
+                # Opt modded mobs into Warband behaviour pools, so they gain the matching
+                # tactics/roles and squad up with their vanilla counterparts. Pools are
+                # separated by ';' and entity ids by ','; '>' splits a pool from its ids
+                # (entity ids already contain ':'). Example:
+                #   customMobPools=ZOMBIE_FAMILY>examplemod:armored_zombie;SPIDER>examplemod:giant_spider
+                # Pools: SPIDER, CAVE_SPIDER, ABSTRACT_SKELETON, STRAY, BOGGED, RANGED_ATTACK,
+                # ZOMBIE_FAMILY, CREEPER, ENDERMAN, ABSTRACT_PIGLIN, BLAZE, WITCH, SLIME_FAMILY,
+                # HOGLIN_FAMILY, ILLAGER_LIKE, PHANTOM, GUARDIAN, SHULKER, GHAST, RAVAGER, WARDEN.
+                # Find an entity id with: /data get entity @e[limit=1,sort=nearest] id
+                customMobPools=%s
                 # If true, logs each Warband tactic execution for debugging.
                 debugTacticLogs=%s
                 # If true, sun-sensitive undead path to shade at dawn instead of waiting to burn.
@@ -390,6 +512,38 @@ public final class WarbandConfig {
                 naturalJockeysEnabled=%s
                 # Difficulty required (0.0-1.0) before a mob is smart enough to form a jockey.
                 naturalJockeyMinDifficulty=%s
+                # ── Siege & anti-cheese ──────────────────────────────────────────
+                # If true, smart diggers mine through blocks to reach a target they cannot path to.
+                siegeMiningEnabled=%s
+                # If true, mined blocks stay gone. Off by default: a breach exists to force the
+                # fight, not to permanently eat a base you added this mod to.
+                siegeMiningPermanent=%s
+                # Seconds before a non-permanent breach seals itself back up.
+                siegeMiningRestoreSeconds=%d
+                # Block tag listing what a siege is allowed to break through.
+                siegeMiningBlockTag=%s
+                # If true, mobs climb ladders and vines to reach a target.
+                climbableBlocksEnabled=%s
+                # If true, mobs scatter from swelling creepers, lit TNT, and wardens.
+                explosionAvoidanceEnabled=%s
+                # If true, a mob parked in a boat or minecart breaks out of it.
+                vehicleEscapeEnabled=%s
+                # If true, smart humanoids open wooden doors and fence gates.
+                doorOpeningEnabled=%s
+                # If true, a creeper that cannot reach its target detonates on the wall in the way.
+                creeperBreachEnabled=%s
+                # If true, bow/crossbow users gain difficulty-scaled cadence and accuracy.
+                rangedTuningEnabled=%s
+                # Maximum share of vanilla inaccuracy / shot interval removed at difficulty 1.0.
+                rangedAccuracyBonusMax=%s
+                rangedCadenceBonusMax=%s
+                # If true, ghasts fire short volleys instead of single fireballs.
+                ghastVolleyEnabled=%s
+                # If true, blazes vary fireball timing and spread.
+                blazeFireballVariationEnabled=%s
+                # If true, hurt silverfish call nearby silverfish.
+                silverfishReinforcementsEnabled=%s
+
                 # If true, active raiders pillage every animal in range (including leashed/named/tamed/babies) when no villager or iron golem is left to fight.
                 raidPredationEnabled=%s
                 # If true, the final wave of a high-ominous raid summons a faction bounty hunter to finish the player personally.
@@ -485,6 +639,8 @@ public final class WarbandConfig {
                     directorRelaxEnhancementChance,
                     roleVisualsEnabled,
                     roleCuesEnabled,
+                    tacticalBarksEnabled,
+                    perceptionCuesEnabled,
                     antiFarmEnabled,
                     antiFarmCrowdThreshold,
                     antiFarmScanSeconds,
@@ -498,12 +654,28 @@ public final class WarbandConfig {
                     enderDragonAbilitiesEnabled,
                     extendedMobTacticsEnabled,
                     disabledTactics,
+                    customMobPools,
                     debugTacticLogs,
                     seekShelterEnabled,
                     endermanProvokeEnabled,
                     spawnerDifficultyFloor,
                     naturalJockeysEnabled,
                     naturalJockeyMinDifficulty,
+                    siegeMiningEnabled,
+                    siegeMiningPermanent,
+                    siegeMiningRestoreSeconds,
+                    siegeMiningBlockTag,
+                    climbableBlocksEnabled,
+                    explosionAvoidanceEnabled,
+                    vehicleEscapeEnabled,
+                    doorOpeningEnabled,
+                    creeperBreachEnabled,
+                    rangedTuningEnabled,
+                    rangedAccuracyBonusMax,
+                    rangedCadenceBonusMax,
+                    ghastVolleyEnabled,
+                    blazeFireballVariationEnabled,
+                    silverfishReinforcementsEnabled,
                     raidPredationEnabled,
                     raidFinaleBountyEnabled,
                     raidRivalInterceptEnabled,

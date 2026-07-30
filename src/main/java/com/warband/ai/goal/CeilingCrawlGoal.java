@@ -29,6 +29,18 @@ public final class CeilingCrawlGoal extends SquadGoal {
     private static final double DROP_MIN_HEIGHT = 2.0;
     /** Tell window: how long the spider hovers, twitching, before it releases. */
     private static final int DROP_TELL_TICKS = 12;
+    /**
+     * Inside this range the vanilla {@code SpiderAttackGoal} takes over. Warband
+     * registers this goal at the same priority (4) as that attack goal, and the
+     * goal selector only lets a <i>strictly</i> higher-priority goal take a flag
+     * from a running one — so whichever started first keeps MOVE indefinitely.
+     * Without an explicit handoff, a spider that reached the player kept crawling
+     * and never bit: the reported "climbs but doesn't attack" and "shoots web then
+     * stops dead in front of you".
+     */
+    private static final double MELEE_HANDOFF_SQR = 3.0 * 3.0;
+    /** A wall is only worth climbing when the target is meaningfully above us. */
+    private static final double CLIMB_MIN_RISE = 1.5;
 
     private LivingEntity target;
     private boolean logged;
@@ -44,14 +56,39 @@ public final class CeilingCrawlGoal extends SquadGoal {
         if (!decisionReady(CHECK_INTERVAL_TICKS)) return false;
         target = visibleTarget();
         if (target == null || mob.distanceToSqr(target) > MAX_DISTANCE_SQR) return false;
-        return hasCeilingGrip() || mob.horizontalCollision;
+        if (mob.distanceToSqr(target) <= MELEE_HANDOFF_SQR) return false;
+        return hasCeilingGrip() || wantsWallClimb();
     }
 
     @Override
     public boolean canContinueToUse() {
         target = visibleTarget();
-        return target != null && mob.distanceToSqr(target) <= MAX_DISTANCE_SQR
-                && (hasCeilingGrip() || mob.horizontalCollision);
+        if (target == null || mob.distanceToSqr(target) > MAX_DISTANCE_SQR) return false;
+        if (hasCeilingGrip()) {
+            // Clinging right over the target but with no headroom to drop: release
+            // so the attack goal can act instead of grinding along the ceiling.
+            return !(horizontalToTargetSqr() < DROP_HORIZONTAL_SQR
+                    && mob.getY() - target.getY() < DROP_MIN_HEIGHT);
+        }
+        // Off the ceiling this goal is only a wall-climb, so require a target
+        // actually above us and stop once we are in biting range.
+        return wantsWallClimb() && mob.distanceToSqr(target) > MELEE_HANDOFF_SQR;
+    }
+
+    /**
+     * {@code horizontalCollision} alone is true whenever the spider is pressed
+     * against anything at all, so on flat ground any wall bump used to hijack the
+     * spider's movement into "climb mode" and suppress its attack.
+     */
+    private boolean wantsWallClimb() {
+        return mob.horizontalCollision && target != null
+                && target.getY() - mob.getY() >= CLIMB_MIN_RISE;
+    }
+
+    private double horizontalToTargetSqr() {
+        double dx = target.getX() - mob.getX();
+        double dz = target.getZ() - mob.getZ();
+        return dx * dx + dz * dz;
     }
 
     @Override
@@ -79,14 +116,13 @@ public final class CeilingCrawlGoal extends SquadGoal {
         }
 
         if (!logged) {
-            logTactic(Tactic.CEILING_CRAWL);
+            announceTactic(Tactic.CEILING_CRAWL);
             logged = true;
         }
 
         // Drop-attack path: target is directly below with clearance. Hold for
         // a tell, then release the ceiling and fall with a web-string trail.
-        double horizontalSqr = (target.getX() - mob.getX()) * (target.getX() - mob.getX())
-                + (target.getZ() - mob.getZ()) * (target.getZ() - mob.getZ());
+        double horizontalSqr = horizontalToTargetSqr();
         double heightAbove = mob.getY() - target.getY();
         if (horizontalSqr < DROP_HORIZONTAL_SQR && heightAbove >= DROP_MIN_HEIGHT) {
             if (dropTellRemaining == 0) {

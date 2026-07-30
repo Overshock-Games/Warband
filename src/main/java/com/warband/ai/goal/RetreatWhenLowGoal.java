@@ -58,7 +58,7 @@ public final class RetreatWhenLowGoal extends SquadGoal {
         }
 
         LivingEntity target = visibleTarget();
-        BlockPos threat = target != null ? target.blockPosition() : squad.lastKnownPos();
+        BlockPos threat = target != null ? target.blockPosition() : rememberedTargetPos();
         if (threat == null) return false;
 
         retreat = awayFrom(threat.getCenter(), 10.0);

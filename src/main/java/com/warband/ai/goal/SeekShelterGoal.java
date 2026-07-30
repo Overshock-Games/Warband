@@ -1,7 +1,10 @@
 package com.warband.ai.goal;
 
+import com.warband.ai.ShelterScan;
+import com.warband.WarbandDebug;
 import com.warband.config.WarbandConfig;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
@@ -15,15 +18,31 @@ import java.util.EnumSet;
  * standing in the open until they catch fire. Predictive: triggers on
  * daytime + sky exposure, not on {@code isOnFire}, so mobs start moving
  * before the first burn tick.
+ *
+ * <p><b>Out of combat only.</b> A mob that has a target commits to it and burns
+ * if it must, exactly as vanilla undead do. Running this during a chase caused
+ * mobs to abandon the player for any nearby overhang, and because leaving the
+ * shade re-armed the goal instantly, they oscillated in place under it — the
+ * "zombies stuck rocking under a floating block" report. Cover a player pillars
+ * up and then abandons is the textbook trigger: the tiles beneath the leftover
+ * blocks read as shelter, and every zombie underneath got pinned there.
  */
 public final class SeekShelterGoal extends Goal implements WarbandGoal {
 
     private static final int SCAN_RADIUS = 10;
+    private static final int VERTICAL_RADIUS = 2;
     private static final int RECHECK_TICKS = 20;
+    /**
+     * Quiet window after sheltering before this mob may seek shade again. Without
+     * it, a mob that steps out of cover for any reason re-triggers on the next
+     * tick and paces the shade boundary.
+     */
+    private static final int REARM_TICKS = 20 * 6;
 
     private final Mob mob;
     private BlockPos shelter;
     private int recheckCounter;
+    private int rearmAtTick;
 
     public SeekShelterGoal(Mob mob) {
         this.mob = mob;
@@ -33,21 +52,25 @@ public final class SeekShelterGoal extends Goal implements WarbandGoal {
     @Override
     public boolean canUse() {
         if (!WarbandConfig.seekShelterEnabled) return false;
+        // Committed to a fight: never break off, and never pace the shade line.
+        if (mob.getTarget() != null) return false;
+        if (mob.tickCount < rearmAtTick) return false;
         if (mob instanceof Husk || mob instanceof WitherSkeleton) return false;
         if (mob.isInWaterOrRain()) return false;
-        if (!mob.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).isEmpty()) return false;
+        if (!mob.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) return false;
         Level level = mob.level();
         if (!level.isBrightOutside()) return false;
         if (!level.canSeeSky(mob.blockPosition())) return false;
         if (--recheckCounter > 0) return shelter != null;
         recheckCounter = RECHECK_TICKS;
-        shelter = findShelter(level, mob.blockPosition());
+        shelter = ShelterScan.nearestCovered(level, mob.blockPosition(), SCAN_RADIUS, VERTICAL_RADIUS, true);
         return shelter != null;
     }
 
     @Override
     public boolean canContinueToUse() {
         if (shelter == null) return false;
+        if (mob.getTarget() != null) return false;
         if (mob.isInWaterOrRain()) return false;
         if (mob.blockPosition().distSqr(shelter) <= 4) return false;
         return !mob.getNavigation().isDone();
@@ -56,33 +79,14 @@ public final class SeekShelterGoal extends Goal implements WarbandGoal {
     @Override
     public void start() {
         mob.getNavigation().moveTo(shelter.getX() + 0.5, shelter.getY(), shelter.getZ() + 0.5, 1.3);
+        WarbandDebug.event("SEEK_SHELTER", mob, "shelter=" + shelter.getX() + " " + shelter.getY()
+                + " " + shelter.getZ() + " target=none");
     }
 
     @Override
     public void stop() {
         mob.getNavigation().stop();
         shelter = null;
-    }
-
-    private BlockPos findShelter(Level level, BlockPos origin) {
-        BlockPos best = null;
-        long bestDist = Long.MAX_VALUE;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int dx = -SCAN_RADIUS; dx <= SCAN_RADIUS; dx++) {
-            for (int dz = -SCAN_RADIUS; dz <= SCAN_RADIUS; dz++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
-                    if (level.canSeeSky(cursor)) continue;
-                    if (!level.getBlockState(cursor).isAir()) continue;
-                    if (level.getBlockState(cursor.below()).isAir()) continue;
-                    long dist = (long) dx * dx + (long) dz * dz + (long) dy * dy * 2;
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        best = cursor.immutable();
-                    }
-                }
-            }
-        }
-        return best;
+        rearmAtTick = mob.tickCount + REARM_TICKS;
     }
 }

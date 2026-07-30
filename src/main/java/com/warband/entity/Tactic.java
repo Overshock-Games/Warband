@@ -49,7 +49,6 @@ public enum Tactic {
     ILLAGER_COMMAND(1 << 14),
     PHANTOM_HARASS(1 << 15),
     LEAP_UNREACHABLE(1 << 16),
-    MOB_STACK_CLIMB(1 << 17),
     GUARDIAN_SURGE(1 << 18),
     SHULKER_LOCKDOWN(1 << 19),
     GHAST_REPOSITION(1 << 20),
@@ -59,7 +58,9 @@ public enum Tactic {
     CEILING_CRAWL(1 << 24),
     RANGED_REPOSITION(1 << 25),
     BOGGED_BACKDASH(1 << 26),
-    STRAY_JUMP_SHOT(1 << 27);
+    STRAY_JUMP_SHOT(1 << 27),
+    SIEGE_MINE(1 << 28),
+    CREEPER_BREACH(1 << 29);
 
     private final int bit;
 
@@ -103,14 +104,27 @@ public enum Tactic {
         if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.70) {
             mask |= WATER_COMMIT.bit;
         }
-        if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.65) {
-            mask |= MOB_STACK_CLIMB.bit;
-        }
         if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.80) {
             mask |= LEAP_UNREACHABLE.bit;
         }
         if (subjects.contains(Subject.CREEPER) && difficulty >= 0.55) {
             mask |= PRESSURE_UNREACHABLE.bit | CREEPER_STALK.bit;
+        }
+        if (subjects.contains(Subject.CREEPER) && difficulty >= 0.60) {
+            mask |= CREEPER_BREACH.bit;
+        }
+        // Siege digging is the answer to a target that simply cannot be pathed to.
+        // Zombies lead, illagers follow at a higher band (they are meant to feel
+        // organised rather than mindless), ravagers earliest — they already read as
+        // siege engines.
+        if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.55) {
+            mask |= SIEGE_MINE.bit;
+        }
+        if (subjects.contains(Subject.ILLAGER_LIKE) && difficulty >= 0.60) {
+            mask |= SIEGE_MINE.bit;
+        }
+        if (subjects.contains(Subject.RAVAGER) && difficulty >= 0.50) {
+            mask |= SIEGE_MINE.bit;
         }
         if (difficulty >= 0.75) {
             mask |= PRESSURE_UNREACHABLE.bit;
@@ -132,11 +146,11 @@ public enum Tactic {
         }
         if (subjects.contains(Subject.HOGLIN_FAMILY) && difficulty >= 0.45) {
             mask |= HOGLIN_STAMPEDE.bit;
-            if (difficulty >= 0.65) mask |= LEAP_UNREACHABLE.bit | MOB_STACK_CLIMB.bit;
+            if (difficulty >= 0.65) mask |= LEAP_UNREACHABLE.bit;
         }
         if (subjects.contains(Subject.ILLAGER_LIKE) && difficulty >= 0.45) {
             mask |= ILLAGER_COMMAND.bit | PRESSURE_UNREACHABLE.bit;
-            if (difficulty >= 0.70) mask |= LEAP_UNREACHABLE.bit | MOB_STACK_CLIMB.bit;
+            if (difficulty >= 0.70) mask |= LEAP_UNREACHABLE.bit;
         }
         if (subjects.contains(Subject.PHANTOM) && difficulty >= 0.45) {
             mask |= PHANTOM_HARASS.bit | PRESSURE_UNREACHABLE.bit;
@@ -165,8 +179,14 @@ public enum Tactic {
         return mask;
     }
 
-    private static EnumSet<Subject> subjectsFor(Mob mob) {
-        EnumSet<Subject> subjects = EnumSet.noneOf(Subject.class);
+    /**
+     * The behaviour pools this mob belongs to: derived from its vanilla class, plus
+     * anything the user declared via {@code customMobPools}. Drives both tactic
+     * selection and squad-family matching, so a modded mob mapped to
+     * {@code ZOMBIE_FAMILY} both gains zombie tactics and squads with real zombies.
+     */
+    public static EnumSet<Subject> subjectsFor(Mob mob) {
+        EnumSet<Subject> subjects = MobPools.subjectsFor(mob);
         if (mob instanceof Spider) subjects.add(Subject.SPIDER);
         if (mob instanceof CaveSpider) subjects.add(Subject.CAVE_SPIDER);
         if (mob instanceof AbstractSkeleton) subjects.add(Subject.ABSTRACT_SKELETON);
@@ -191,7 +211,8 @@ public enum Tactic {
         return subjects;
     }
 
-    enum Subject {
+    /** Behaviour pools. Also the vocabulary users write in {@code customMobPools}. */
+    public enum Subject {
         SPIDER,
         CAVE_SPIDER,
         ABSTRACT_SKELETON,

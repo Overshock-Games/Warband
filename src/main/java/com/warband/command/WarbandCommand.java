@@ -7,6 +7,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.warband.ai.Squad;
 import com.warband.ai.SquadCoordinator;
 import com.warband.ai.MultiplayerDirector;
+import com.warband.WarbandDebug;
 import com.warband.WarbandMod;
 import com.warband.config.WarbandConfig;
 import com.warband.difficulty.DifficultyManager;
@@ -26,6 +27,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -94,12 +96,16 @@ public final class WarbandCommand {
                                                 .executes(WarbandCommand::debugRevenge)))
                                 .then(Commands.literal("bounty")
                                         .then(Commands.argument("difficulty", DoubleArgumentType.doubleArg(0.0, 1.0))
-                                                .executes(WarbandCommand::debugBounty))))));
+                                                .executes(WarbandCommand::debugBounty)))
+                                .then(Commands.literal("stamp")
+                                        .then(Commands.argument("difficulty", DoubleArgumentType.doubleArg(0.0, 1.0))
+                                                .executes(WarbandCommand::debugStamp))))));
     }
 
     private static int reloadConfig(CommandContext<CommandSourceStack> ctx) {
         WarbandConfig.load(WarbandMod.LOGGER);
-        ctx.getSource().sendSuccess(() -> Component.literal("[Warband] config reloaded from config/warband.properties"), true);
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                "[Warband] config reloaded from " + WarbandConfig.configLocation()), true);
         return 1;
     }
 
@@ -298,6 +304,51 @@ public final class WarbandCommand {
         source.sendSuccess(() -> Component.literal(String.format(
                 "[Warband] Spawned zombie at difficulty %.2f, max health %.1f (vanilla 20.0)",
                 difficulty, health)), false);
+        return 1;
+    }
+
+    /**
+     * Re-stamps every eligible mob nearby at an explicit difficulty and rebinds its
+     * goals.
+     *
+     * <p>The testing hook the other debug commands could not provide: {@code debug
+     * spawn} and {@code debug squad} only make zombies, and anything summoned with
+     * {@code /summon} is stamped at the <i>local</i> difficulty, which near world
+     * spawn is 0.0 — no tactics at all. That made every difficulty-gated behaviour
+     * (siege mining at 0.55, creeper breaching at 0.60, ranged tuning) impossible to
+     * exercise without walking thousands of blocks first.
+     *
+     * <p>So: summon whatever mob you want, run this, and it is instantly at the band
+     * you asked for.
+     */
+    private static int debugStamp(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        double difficulty = DoubleArgumentType.getDouble(ctx, "difficulty");
+        ServerLevel level = source.getLevel();
+        AABB box = AABB.ofSize(source.getPosition(), MOB_DEBUG_SIZE, MOB_DEBUG_SIZE, MOB_DEBUG_SIZE);
+
+        List<Mob> mobs = level.getEntitiesOfClass(Mob.class, box,
+                candidate -> candidate instanceof Enemy && candidate.isAlive());
+        if (mobs.isEmpty()) {
+            source.sendFailure(Component.literal(
+                    "[Warband] No hostile mobs within " + (int) MOB_DEBUG_SIZE + " blocks."));
+            return 0;
+        }
+
+        int stamped = 0;
+        for (Mob mob : mobs) {
+            // Clear the bound-goals marker so addGoals re-runs with the new tactic mask.
+            mob.setAttached(WarbandAttachments.WARBAND_GOALS_BOUND, false);
+            SpawnDirector.stamp(mob, difficulty);
+            SquadCoordinator.bindStampedSolo(mob, level);
+            stamped++;
+        }
+
+        int finalStamped = stamped;
+        source.sendSuccess(() -> Component.literal(String.format(
+                "[Warband] Re-stamped %d mob(s) at difficulty %.2f. Use /warband mobdebug to inspect tactics.",
+                finalStamped, difficulty)), true);
+        WarbandDebug.event("DEBUG_STAMP", String.format("count=%d diff=%.2f", finalStamped, difficulty));
         return 1;
     }
 

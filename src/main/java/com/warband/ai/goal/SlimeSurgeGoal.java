@@ -34,7 +34,7 @@ public final class SlimeSurgeGoal extends SquadGoal {
         if (surgeTarget == null || !surgeTarget.isAlive()) return;
         resetCooldown(COOLDOWN_TICKS);
         mob.addEffect(new MobEffectInstance(MobEffects.SPEED, 80, 1, false, true));
-        logTactic(Tactic.SLIME_SURGE);
+        announceTactic(Tactic.SLIME_SURGE);
         TacticalEffects.search((ServerLevel) mob.level(), mob.position());
         mob.getNavigation().moveTo(surgeTarget, speed);
     }

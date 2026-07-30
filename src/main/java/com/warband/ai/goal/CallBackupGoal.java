@@ -2,6 +2,7 @@ package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
 import com.warband.ai.SquadCoordinator;
+import com.warband.ai.TacticalBarks;
 import com.warband.ai.TacticalEffects;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -31,5 +32,8 @@ public final class CallBackupGoal extends SquadGoal {
         // Also wave in idle neighboring squads, so a fight isn't fought alone
         // even when no fresh recruit was available.
         SquadCoordinator.broadcastDistress(squad, mob.blockPosition());
+        // The one rally that has no Tactic of its own, and the one players most need
+        // to hear coming.
+        TacticalBarks.rally(mob);
     }
 }

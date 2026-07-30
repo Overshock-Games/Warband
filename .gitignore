@@ -41,3 +41,9 @@ tmp/
 # Wiki clone (cloned to c:/tmp/Warband.wiki, ignored here if pulled into the tree)
 wiki/
 Warband.wiki/
+
+# graphify knowledge graph (regenerated locally by the post-commit hook)
+graphify-out/
+
+# Claude Code personal settings (graphify hooks are machine-local)
+.claude/settings.local.json

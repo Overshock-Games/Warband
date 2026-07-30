@@ -5,6 +5,9 @@ import com.warband.ai.goal.BlazeHoverGoal;
 import com.warband.ai.goal.CallBackupGoal;
 import com.warband.ai.goal.CeilingCrawlGoal;
 import com.warband.ai.goal.CreeperStalkGoal;
+import com.warband.ai.goal.CreeperBreachGoal;
+import com.warband.ai.goal.ClimbToTargetGoal;
+import com.warband.ai.goal.DreadAvoidGoal;
 import com.warband.ai.goal.EndermanDisruptGoal;
 import com.warband.ai.goal.ExtendedMobTacticGoal;
 import com.warband.ai.goal.FlankGoal;
@@ -17,6 +20,7 @@ import com.warband.ai.goal.InvestigateLastKnownGoal;
 import com.warband.ai.goal.KiteGoal;
 import com.warband.ai.goal.PhantomHarassGoal;
 import com.warband.ai.goal.SeekShelterGoal;
+import com.warband.ai.goal.SiegeMineGoal;
 import com.warband.ai.goal.SkeletonPerchGoal;
 import com.warband.ai.goal.PiglinSocialGoal;
 import com.warband.ai.goal.PressureUnreachableGoal;
@@ -30,6 +34,8 @@ import com.warband.ai.goal.SpiderLeapGoal;
 import com.warband.ai.goal.SpiderWebGoal;
 import com.warband.ai.goal.StickyPathGoal;
 import com.warband.ai.goal.WaterCommitGoal;
+import com.warband.ai.goal.SuspicionPauseGoal;
+import com.warband.ai.goal.WarbandDoorGoal;
 import com.warband.ai.goal.WarbandGoal;
 import com.warband.ai.goal.WitchSupportGoal;
 import com.warband.ai.goal.ZombieHordeGoal;
@@ -38,6 +44,7 @@ import com.warband.compat.IllagerInvasionCompat;
 import com.warband.compat.RaidCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
+import com.warband.entity.MobPools;
 import com.warband.entity.Role;
 import com.warband.entity.Tactic;
 import com.warband.mixin.MobGoalSelectorAccessor;
@@ -78,6 +85,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -436,8 +444,7 @@ public final class SquadCoordinator {
             accessor.warband$goalSelector().addGoal(4, new WaterCommitGoal(mob, squad));
         }
         if (hasEnabledTactic(data, Tactic.PRESSURE_UNREACHABLE)
-                || hasEnabledTactic(data, Tactic.LEAP_UNREACHABLE)
-                || hasEnabledTactic(data, Tactic.MOB_STACK_CLIMB)) {
+                || hasEnabledTactic(data, Tactic.LEAP_UNREACHABLE)) {
             accessor.warband$goalSelector().addGoal(5, new PressureUnreachableGoal(mob, squad));
         }
         if (hasEnabledTactic(data, Tactic.RANGED_REPOSITION)) {
@@ -448,6 +455,16 @@ public final class SquadCoordinator {
         }
         if (hasEnabledTactic(data, Tactic.CREEPER_STALK)) {
             accessor.warband$goalSelector().addGoal(4, new CreeperStalkGoal(mob, squad));
+        }
+        // Breaching sits above the stalk: a creeper that cannot reach you should stop
+        // circling for a better angle and start removing the wall.
+        if (hasEnabledTactic(data, Tactic.CREEPER_BREACH)) {
+            accessor.warband$goalSelector().addGoal(3, new CreeperBreachGoal(mob, squad));
+        }
+        // Priority 6: below melee and the positioning tactics, so digging is the last
+        // resort it is meant to be rather than a shortcut past a reachable player.
+        if (hasEnabledTactic(data, Tactic.SIEGE_MINE)) {
+            accessor.warband$goalSelector().addGoal(6, new SiegeMineGoal(mob, squad));
         }
         if (hasEnabledTactic(data, Tactic.ZOMBIE_HORDE)) {
             // Priority 3 so the encircle preempts vanilla melee approach until
@@ -497,6 +514,30 @@ public final class SquadCoordinator {
         if (mob instanceof Zombie || mob instanceof AbstractSkeleton) {
             accessor.warband$goalSelector().addGoal(1, new SeekShelterGoal(mob));
         }
+        // Universal on every stamped mob: get away from imminent detonations and
+        // wardens. Priority 1 so it interrupts Warband's own positioning tactics —
+        // no tactic is worth standing in a blast for.
+        accessor.warband$goalSelector().addGoal(1, new DreadAvoidGoal(mob));
+        // Universal: use a ladder you are already standing on. No goal flags, so it
+        // layers under the attack goal's pathing rather than fighting it.
+        accessor.warband$goalSelector().addGoal(2, new ClimbToTargetGoal(mob));
+        // The visible half of a suspicious state. Priority 2, deliberately *below* the
+        // other two universal priority-1 MOVE goals: equal priorities cannot preempt
+        // each other, so at 1 a mob frozen in a suspicious stare could not flee a
+        // swelling creeper or run from the sunrise. Staring is the least urgent of the
+        // three. Still above the vanilla stroll goals it exists to interrupt, and it
+        // requires no target, so it never competes with a vanilla attack goal at 2.
+        accessor.warband$goalSelector().addGoal(2, new SuspicionPauseGoal(mob));
+        // Doors, for the mobs already treated as intelligent enough to retreat.
+        // Requires opening up door pathing first, or the goal can never trigger —
+        // it only fires when the current path already routes onto a door block.
+        // Also flagless, so it never competes for movement.
+        if (canOpenDoors(mob) && WarbandDoorGoal.enableDoorPathing(mob)) {
+            accessor.warband$goalSelector().addGoal(2, new WarbandDoorGoal(mob));
+            // Logged on attach so a silent failure is diagnosable: "bound but never
+            // fired" is a very different bug from "never bound".
+            com.warband.WarbandDebug.event("DOOR_GOAL_BOUND", mob, null);
+        }
         // Passive horde-formation: out-of-combat zombies drift toward each
         // other so wanderers naturally cluster instead of starving solo.
         // Low priority so it never overrides combat/shelter behaviors.
@@ -543,6 +584,16 @@ public final class SquadCoordinator {
                 || mob instanceof Drowned;
     }
 
+    /**
+     * Who understands a door handle: the same intelligent-humanoid set that knows to
+     * retreat, plus modded illagers via compat. Zombies are excluded on purpose —
+     * breaking the door down is their thing.
+     */
+    private static boolean canOpenDoors(Mob mob) {
+        if (mob instanceof Zombie) return false;
+        return canRetreat(mob) || IllagerInvasionCompat.isIllagerLike(mob);
+    }
+
     private static boolean isSimpleFamily(Mob mob) {
         if (mob instanceof Drowned) return false;
         return mob instanceof Zombie
@@ -553,9 +604,27 @@ public final class SquadCoordinator {
                 || mob instanceof Zoglin;
     }
 
+    /** Ring the formation spawns into, so members start spread out rather than stacked. */
+    private static final int FORMATION_MIN_RADIUS = 3;
+    private static final int FORMATION_MAX_RADIUS = 7;
+    /** How far up/down to look for solid footing at a formation slot. */
+    private static final int FORMATION_VERTICAL_SEARCH = 4;
+
+    /** Formations start appearing here, and become reliable at {@link #FORMATION_FULL_DIFFICULTY}. */
+    private static final double FORMATION_MIN_DIFFICULTY = 0.35;
+    private static final double FORMATION_FULL_DIFFICULTY = 0.60;
+
     private static void spawnNaturalSquadmates(Squad squad, Mob anchor, double difficulty) {
         int cap = effectiveMaxSquadSize(squad.level(), anchor.blockPosition());
-        if (difficulty < 0.45 || squad.members().size() >= cap) return;
+        if (difficulty < FORMATION_MIN_DIFFICULTY || squad.members().size() >= cap) return;
+
+        // Faded in rather than switched on at a single threshold. A hard gate at
+        // 0.45 meant crowds appeared all at once, in the same difficulty band where
+        // gear and leaders also unlocked, which is what made progression read as a
+        // staircase. Also keeps total mob volume lower through the early game.
+        double formationChance = Math.min(1.0,
+                (difficulty - FORMATION_MIN_DIFFICULTY) / (FORMATION_FULL_DIFFICULTY - FORMATION_MIN_DIFFICULTY));
+        if (formationChance < 1.0 && anchor.getRandom().nextDouble() >= formationChance) return;
 
         int baseSize = 2 + (int) Math.floor(difficulty * 3.0);
         if (isZombieFamily(anchor)) {
@@ -566,10 +635,13 @@ public final class SquadCoordinator {
         for (int i = 0; i < toSpawn; i++) {
             if (!underSmartCap(squad.level(), anchor)) break;
 
-            BlockPos pos = anchor.blockPosition().offset(
-                    anchor.getRandom().nextInt(7) - 3,
-                    0,
-                    anchor.getRandom().nextInt(7) - 3);
+            // Placed around a ring at distinct bearings instead of inside a 7x7 box
+            // at the anchor's own Y. The old box put members on top of each other
+            // and, on any uneven ground, inside terrain — they were then shoved out
+            // into a single heap, which is what read to players as a horde piling
+            // into one corner and never reaching them.
+            BlockPos pos = formationSlot(squad.level(), anchor, i, toSpawn);
+            if (pos == null) continue;
             Mob spawned = spawnSameType(anchor, pos);
             if (spawned == null) continue;
 
@@ -577,6 +649,37 @@ public final class SquadCoordinator {
             addMob(squad, spawned, role, difficulty);
             TacticalEffects.signal(squad.level(), spawned.position());
         }
+    }
+
+    /**
+     * A standable tile on a ring around the anchor, at this member's own bearing.
+     * Returns null when the slot is blocked, so a squadmate is skipped rather than
+     * spawned inside a wall.
+     */
+    private static BlockPos formationSlot(ServerLevel level, Mob anchor, int index, int total) {
+        double spread = Math.max(1, total);
+        double angle = (index * (Math.PI * 2.0)) / spread + anchor.getRandom().nextDouble() * 0.4;
+        int radius = FORMATION_MIN_RADIUS
+                + anchor.getRandom().nextInt(FORMATION_MAX_RADIUS - FORMATION_MIN_RADIUS + 1);
+        BlockPos origin = anchor.blockPosition();
+        int x = origin.getX() + (int) Math.round(Math.cos(angle) * radius);
+        int z = origin.getZ() + (int) Math.round(Math.sin(angle) * radius);
+
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int step = 0; step <= FORMATION_VERTICAL_SEARCH * 2; step++) {
+            int dy = (step + 1) / 2;
+            if (step % 2 == 1) dy = -dy;
+            cursor.set(x, origin.getY() + dy, z);
+            if (isStandable(level, cursor)) return cursor.immutable();
+        }
+        return null;
+    }
+
+    /** Two blocks of clearance on solid footing — room for a humanoid to exist. */
+    private static boolean isStandable(ServerLevel level, BlockPos pos) {
+        if (!level.getBlockState(pos).isAir()) return false;
+        if (!level.getBlockState(pos.above()).isAir()) return false;
+        return !level.getBlockState(pos.below()).isAir();
     }
 
     @SuppressWarnings("unchecked")
@@ -644,19 +747,41 @@ public final class SquadCoordinator {
                 || mob instanceof Ghast
                 || mob instanceof CaveSpider
                 || mob instanceof Ravager
-                || mob instanceof Warden;
+                || mob instanceof Warden
+                // Opt-in only: an explicit customMobPools entry. Deliberately not
+                // "has any subject" — that would sweep in every modded RangedAttackMob.
+                || MobPools.isConfigured(mob);
+    }
+
+    /**
+     * Pools whose members form and share squads. Derived from {@link Tactic.Subject}
+     * rather than a chain of {@code instanceof} checks, so a modded mob mapped into
+     * a pool via {@code customMobPools} squads up with its vanilla counterparts.
+     */
+    private static final EnumSet<Tactic.Subject> SQUAD_FAMILIES = EnumSet.of(
+            Tactic.Subject.ZOMBIE_FAMILY,
+            Tactic.Subject.ABSTRACT_SKELETON,
+            Tactic.Subject.SPIDER,
+            Tactic.Subject.ABSTRACT_PIGLIN,
+            Tactic.Subject.HOGLIN_FAMILY,
+            Tactic.Subject.ILLAGER_LIKE);
+
+    /** Skeletons form squads but never shout for reinforcements. */
+    private static final EnumSet<Tactic.Subject> BACKUP_FAMILIES = EnumSet.of(
+            Tactic.Subject.ZOMBIE_FAMILY,
+            Tactic.Subject.SPIDER,
+            Tactic.Subject.ABSTRACT_PIGLIN,
+            Tactic.Subject.HOGLIN_FAMILY,
+            Tactic.Subject.ILLAGER_LIKE);
+
+    private static EnumSet<Tactic.Subject> squadFamilies(Mob mob) {
+        EnumSet<Tactic.Subject> families = Tactic.subjectsFor(mob);
+        families.retainAll(SQUAD_FAMILIES);
+        return families;
     }
 
     private static boolean formsNaturalSquads(Mob mob) {
-        return mob instanceof Zombie
-                || mob instanceof Drowned
-                || mob instanceof ZombifiedPiglin
-                || mob instanceof AbstractSkeleton
-                || mob instanceof Spider
-                || mob instanceof AbstractPiglin
-                || mob instanceof Hoglin
-                || mob instanceof Zoglin
-                || IllagerInvasionCompat.isIllagerLike(mob);
+        return !squadFamilies(mob).isEmpty();
     }
 
     private static boolean alwaysSoloTactic(Mob mob) {
@@ -676,14 +801,9 @@ public final class SquadCoordinator {
     }
 
     private static boolean canCallBackup(Mob mob) {
-        return mob instanceof Zombie
-                || mob instanceof Drowned
-                || mob instanceof ZombifiedPiglin
-                || mob instanceof Spider
-                || mob instanceof AbstractPiglin
-                || mob instanceof Hoglin
-                || mob instanceof Zoglin
-                || IllagerInvasionCompat.isIllagerLike(mob);
+        EnumSet<Tactic.Subject> subjects = Tactic.subjectsFor(mob);
+        subjects.retainAll(BACKUP_FAMILIES);
+        return !subjects.isEmpty();
     }
 
     private static boolean canRecruitBackup(Squad squad, Mob candidate) {
@@ -692,26 +812,14 @@ public final class SquadCoordinator {
                 && sameSquadFamily(squad.members().getFirst(), candidate);
     }
 
+    /** Two mobs share a squad when they share a behaviour pool, else only when identical. */
     private static boolean sameSquadFamily(Mob a, Mob b) {
-        if (isZombieFamily(a) || isZombieFamily(b)) {
-            return isZombieFamily(a) && isZombieFamily(b);
+        EnumSet<Tactic.Subject> familiesA = squadFamilies(a);
+        EnumSet<Tactic.Subject> familiesB = squadFamilies(b);
+        if (familiesA.isEmpty() && familiesB.isEmpty()) {
+            return a.getType() == b.getType();
         }
-        if (a instanceof AbstractSkeleton || b instanceof AbstractSkeleton) {
-            return a instanceof AbstractSkeleton && b instanceof AbstractSkeleton;
-        }
-        if (a instanceof Spider || b instanceof Spider) {
-            return a instanceof Spider && b instanceof Spider;
-        }
-        if (a instanceof AbstractPiglin || b instanceof AbstractPiglin) {
-            return a instanceof AbstractPiglin && b instanceof AbstractPiglin;
-        }
-        if (a instanceof Hoglin || a instanceof Zoglin || b instanceof Hoglin || b instanceof Zoglin) {
-            return (a instanceof Hoglin || a instanceof Zoglin) && (b instanceof Hoglin || b instanceof Zoglin);
-        }
-        if (IllagerInvasionCompat.isIllagerLike(a) || IllagerInvasionCompat.isIllagerLike(b)) {
-            return IllagerInvasionCompat.isIllagerLike(a) && IllagerInvasionCompat.isIllagerLike(b);
-        }
-        return a.getType() == b.getType();
+        return !java.util.Collections.disjoint(familiesA, familiesB);
     }
 
     private static boolean isZombieFamily(Mob mob) {

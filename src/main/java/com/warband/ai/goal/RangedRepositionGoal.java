@@ -41,7 +41,7 @@ public final class RangedRepositionGoal extends SquadGoal {
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
         if (reposition != null && moveTo(reposition)) {
-            logTactic(Tactic.RANGED_REPOSITION);
+            announceTactic(Tactic.RANGED_REPOSITION);
             if (mob.level() instanceof ServerLevel level) {
                 TacticalEffects.search(level, mob.position());
             }

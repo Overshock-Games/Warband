@@ -42,7 +42,7 @@ public final class WaterCommitGoal extends SquadGoal {
         if (mob.getNavigation().moveTo(waterTarget, speed)) {
             pressureToward(waterTarget);
             accelerateDrowning();
-            logTactic(Tactic.WATER_COMMIT);
+            announceTactic(Tactic.WATER_COMMIT);
             TacticalEffects.waterCommit((ServerLevel) mob.level(), mob.position());
         }
     }

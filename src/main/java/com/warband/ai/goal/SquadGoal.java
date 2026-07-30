@@ -1,9 +1,12 @@
 package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
+import com.warband.ai.TacticalBarks;
 import com.warband.ai.VisibilityRules;
+import com.warband.WarbandDebug;
 import com.warband.WarbandMod;
 import com.warband.config.WarbandConfig;
+import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
@@ -16,10 +19,15 @@ import java.util.EnumSet;
 
 abstract class SquadGoal extends Goal implements WarbandGoal {
 
+    /** How long a mob's own sighting stays actionable. Matches the squad blackboard. */
+    private static final int MEMORY_TICKS = 20 * 12;
+
     protected final Mob mob;
     protected final Squad squad;
     protected final double speed;
     private int nextDecisionTick;
+    private @Nullable BlockPos lastSeenPos;
+    private int lastSeenTick;
 
     SquadGoal(Mob mob, Squad squad, double speed) {
         this.mob = mob;
@@ -30,7 +38,17 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
 
     @Override
     public boolean canContinueToUse() {
+        if (VisibilityRules.frightenedByNearbyAnimal(mob)) return false;
         return mob.isAlive() && !mob.isDeadOrDying() && !mob.isRemoved() && !mob.getNavigation().isDone();
+    }
+
+    /**
+     * Shared gate for {@code canUse()} in subclasses: don't start a tactic while
+     * the mob is fleeing something it fears. Paired with the same check in
+     * {@link #canContinueToUse()}, which releases the MOVE flag mid-tactic.
+     */
+    protected boolean frightened() {
+        return VisibilityRules.frightenedByNearbyAnimal(mob);
     }
 
     protected boolean decisionReady(int interval) {
@@ -50,26 +68,54 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
     protected @Nullable LivingEntity visibleTarget() {
         LivingEntity target = mob.getTarget();
         if (VisibilityRules.canUseTacticalSight(mob, target)) {
-            return target;
+            return remember(target);
         }
         target = squad.target();
-        return VisibilityRules.canUseTacticalSight(mob, target) ? target : null;
+        return VisibilityRules.canUseTacticalSight(mob, target) ? remember(target) : null;
+    }
+
+    private LivingEntity remember(LivingEntity target) {
+        lastSeenPos = target.blockPosition();
+        lastSeenTick = mob.tickCount;
+        return target;
+    }
+
+    /**
+     * Where the target was last actually seen, whether or not this mob is in a squad.
+     *
+     * <p>{@link Squad#lastKnownPos()} only works for real squads. Mobs that do not form
+     * them — every creeper, and any zombie that spawned alone — are handed a throwaway
+     * {@code Squad} that is never registered or ticked, so its last-known position is
+     * permanently null. Any goal relying solely on the squad blackboard therefore went
+     * completely blind the moment a solo mob lost line of sight, which is precisely
+     * when "where did they go" matters. This is the per-mob fallback.
+     */
+    protected @Nullable BlockPos rememberedTargetPos() {
+        BlockPos shared = squad.lastKnownPos();
+        if (shared != null) return shared;
+        if (lastSeenPos == null) return null;
+        return mob.tickCount - lastSeenTick <= MEMORY_TICKS ? lastSeenPos : null;
     }
 
     protected boolean moveTo(BlockPos pos) {
         return mob.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
     }
 
-    protected void logTactic(Tactic tactic) {
+    /**
+     * Announces a tactic: an audible bark for players, and a debug trace for logs.
+     * Barks are deliberately not gated on {@code debugTacticLogs} — they are a
+     * gameplay feature, not diagnostics — but both hang off this one call so cue
+     * coverage and log coverage can never drift apart.
+     */
+    protected void announceTactic(Tactic tactic) {
+        TacticalBarks.play(mob, tactic);
         if (!WarbandConfig.debugTacticLogs) return;
         LivingEntity target = mob.getTarget();
-        WarbandMod.LOGGER.info("[Warband] {} used {} at {} {} {} target={}",
-                mob.getType().toShortString(),
-                tactic.name(),
-                mob.blockPosition().getX(),
-                mob.blockPosition().getY(),
-                mob.blockPosition().getZ(),
-                target == null ? "none" : target.getType().toShortString());
+        // Routed through WarbandDebug so tactic logs share the machine-readable
+        // EVENT=/key=value shape with every other behaviour trace.
+        WarbandDebug.event(tactic.name(), mob, String.format("diff=%.2f target=%s",
+                MobData.get(mob).difficulty(),
+                target == null ? "none" : target.getType().toShortString()));
     }
 
     protected @Nullable BlockPos awayFrom(Vec3 threat, double distance) {

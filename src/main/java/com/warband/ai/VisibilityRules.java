@@ -5,11 +5,39 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.feline.Cat;
+import net.minecraft.world.entity.animal.feline.Ocelot;
+import net.minecraft.world.entity.monster.Creeper;
 
 /** Warband-specific perception modifiers for tactical AI decisions. */
 public final class VisibilityRules {
 
+    /** Vanilla {@code Creeper} flees cats and ocelots inside this radius. */
+    private static final double CAT_FEAR_RADIUS = 6.0;
+
     private VisibilityRules() {
+    }
+
+    /**
+     * True when this mob should abandon Warband tactics because something it is
+     * naturally afraid of is close enough to matter. Creepers only, for now.
+     *
+     * <p>Vanilla puts the creeper's cat/ocelot {@code AvoidEntityGoal} at goal
+     * priority 3. Warband's own creeper tactics sit at 4 and 5 so avoidance
+     * outranks them, but a squadded creeper also receives {@code RegroupGoal} at
+     * priority 3 — a tie, and the goal selector only lets a <i>strictly</i>
+     * higher-priority goal seize a flag from a running one. Whichever of the two
+     * started first kept {@code MOVE}, so cats intermittently stopped working.
+     * Rather than shuffle priorities and hope, every Warband movement goal yields
+     * outright while a cat is near, which is also just correct: a creeper too
+     * scared to approach is too scared to flank.
+     */
+    public static boolean frightenedByNearbyAnimal(Mob mob) {
+        if (!(mob instanceof Creeper)) return false;
+        // Mirrors vanilla's AvoidEntityGoal box for these two: inflate(6, 3, 6).
+        return !mob.level().getEntitiesOfClass(LivingEntity.class,
+                mob.getBoundingBox().inflate(CAT_FEAR_RADIUS, 3.0, CAT_FEAR_RADIUS),
+                e -> e.isAlive() && (e instanceof Cat || e instanceof Ocelot)).isEmpty();
     }
 
     public static boolean canUseTacticalSight(Mob mob, LivingEntity target) {
@@ -20,10 +48,39 @@ public final class VisibilityRules {
         return mob.distanceToSqr(target) <= allowed * allowed;
     }
 
-    private static double tacticalSightRange(Mob mob, LivingEntity target) {
+    /**
+     * True when the <i>only</i> reason this target is unseen is a stealth modifier —
+     * it is in line of sight and inside the mob's unmodified follow range, but outside
+     * the range crouching, darkness or invisibility has cut it down to.
+     *
+     * <p>This is the moment stealth actually happens, and until now it happened in
+     * total silence. It is the signal {@link PerceptionCues} turns into a "something's
+     * there" reaction, which is what teaches players that
+     * {@link #canUseTacticalSight} subtracts at all.
+     */
+    public static boolean concealedNearMiss(Mob mob, LivingEntity target) {
+        if (target == null || !target.isAlive()) return false;
+        if (!mob.hasLineOfSight(target)) return false;
+        // Glowing overrides every penalty, so there is no concealment to notice.
+        if (target.hasEffect(MobEffects.GLOWING)) return false;
+
+        double base = baseSightRange(mob);
+        double allowed = tacticalSightRange(mob, target);
+        // No modifier in play: being merely far away is not a near miss.
+        if (allowed >= base) return false;
+
+        double distanceSqr = mob.distanceToSqr(target);
+        return distanceSqr > allowed * allowed && distanceSqr <= base * base;
+    }
+
+    private static double baseSightRange(Mob mob) {
         AttributeInstance followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
         double range = followRange == null ? 16.0 : followRange.getValue();
-        if (range <= 0.0) range = 16.0;
+        return range <= 0.0 ? 16.0 : range;
+    }
+
+    private static double tacticalSightRange(Mob mob, LivingEntity target) {
+        double range = baseSightRange(mob);
 
         double multiplier = 1.0;
         if (mob.hasEffect(MobEffects.DARKNESS)) multiplier = Math.min(multiplier, 0.20);

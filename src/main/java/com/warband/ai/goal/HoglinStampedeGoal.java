@@ -36,7 +36,7 @@ public final class HoglinStampedeGoal extends SquadGoal {
         resetCooldown(COOLDOWN_TICKS);
         mob.addEffect(new MobEffectInstance(MobEffects.SPEED, 100, 0, false, true));
         mob.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 100, 0, false, true));
-        logTactic(Tactic.HOGLIN_STAMPEDE);
+        announceTactic(Tactic.HOGLIN_STAMPEDE);
         TacticalEffects.signal((ServerLevel) mob.level(), mob);
         mob.getNavigation().moveTo(stampedeTarget, speed);
     }

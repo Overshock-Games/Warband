@@ -48,9 +48,8 @@ class TacticTest {
         int climb = choose(Tactic.Subject.HOGLIN_FAMILY, 0.65);
 
         assertTrue(Tactic.has(stampedeOnly, Tactic.HOGLIN_STAMPEDE));
-        assertFalse(Tactic.has(stampedeOnly, Tactic.MOB_STACK_CLIMB));
+        assertFalse(Tactic.has(stampedeOnly, Tactic.LEAP_UNREACHABLE));
         assertTrue(Tactic.has(climb, Tactic.LEAP_UNREACHABLE));
-        assertTrue(Tactic.has(climb, Tactic.MOB_STACK_CLIMB));
     }
 
     @Test

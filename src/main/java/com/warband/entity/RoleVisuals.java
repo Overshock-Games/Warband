@@ -15,6 +15,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.RangedAttackMob;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -28,6 +29,11 @@ public final class RoleVisuals {
     private RoleVisuals() {
     }
 
+    /** Below this, role gear never appears. */
+    private static final double GEAR_MIN_DIFFICULTY = 0.25;
+    /** At and above this, every piece of a role's kit is guaranteed. */
+    private static final double GEAR_FULL_DIFFICULTY = 0.80;
+
     public static void apply(Mob mob, Role role, double difficulty) {
         if (role == Role.NONE) return;
 
@@ -36,36 +42,90 @@ public final class RoleVisuals {
         TacticalEffects.roleCue(mob, role);
         if (!WarbandConfig.roleVisualsEnabled) return;
         applyScale(mob, role);
-        if (IllagerInvasionCompat.isIllagerLike(mob) || difficulty < 0.35) return;
+        if (IllagerInvasionCompat.isIllagerLike(mob)) return;
+
+        // Each piece rolls independently, and armour tier climbs with difficulty.
+        // This used to be a hard cutoff at 0.35: one step earlier a mob had nothing,
+        // one step later it wore a full iron kit. Together with leaders unlocking at
+        // 0.40 and squad formations at 0.45, three step functions fired inside the
+        // same narrow band — the reported jump from "very easy" to caves "with lots
+        // of armor and tools" with no transition between. Partial kits now fade in:
+        // a lone chestplate here, a helmet there, before full sets show up.
+        double chance = gearChance(difficulty);
+        if (chance <= 0.0) return;
 
         switch (role) {
             case LEADER -> {
-                equipArmor(mob, EquipmentSlot.HEAD, enchanted(mob, new ItemStack(Items.GOLDEN_HELMET), Enchantments.PROTECTION, 1));
-                equipArmor(mob, EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_CHESTPLATE));
+                // Gold stays the leader's visual signature at every tier — it is a
+                // tell for players, and gold is weak armour so it costs no balance.
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.HEAD, enchanted(mob, new ItemStack(Items.GOLDEN_HELMET), Enchantments.PROTECTION, 1));
+                }
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.CHEST, new ItemStack(Items.GOLDEN_CHESTPLATE));
+                }
             }
             case BRUISER -> {
-                if (mob instanceof Zombie) {
-                    replaceWeapon(mob, enchanted(mob, new ItemStack(Items.IRON_AXE), Enchantments.SHARPNESS, level(difficulty, 1, 2)));
+                if (mob instanceof Zombie && roll(mob, chance)) {
+                    replaceWeapon(mob, enchanted(mob, new ItemStack(axeFor(difficulty)), Enchantments.SHARPNESS, level(difficulty, 1, 2)));
                 }
-                equipArmor(mob, EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.CHEST, new ItemStack(chestplateFor(difficulty)));
+                }
             }
             case MARKSMAN -> {
-                equipArmor(mob, EquipmentSlot.HEAD, enchanted(mob, new ItemStack(Items.LEATHER_HELMET), Enchantments.PROJECTILE_PROTECTION, 1));
-                if (mob instanceof RangedAttackMob && !mob.getMainHandItem().isEmpty()) {
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.HEAD, enchanted(mob, new ItemStack(helmetFor(difficulty)), Enchantments.PROJECTILE_PROTECTION, 1));
+                }
+                if (mob instanceof RangedAttackMob && !mob.getMainHandItem().isEmpty() && roll(mob, chance)) {
                     enchantExistingWeapon(mob, difficulty);
                 }
             }
             case SKIRMISHER -> {
-                equipArmor(mob, EquipmentSlot.FEET, enchanted(mob, new ItemStack(Items.LEATHER_BOOTS), Enchantments.PROTECTION, 1));
-                equipArmor(mob, EquipmentSlot.LEGS, new ItemStack(Items.LEATHER_LEGGINGS));
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.FEET, enchanted(mob, new ItemStack(Items.LEATHER_BOOTS), Enchantments.PROTECTION, 1));
+                }
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.LEGS, new ItemStack(Items.LEATHER_LEGGINGS));
+                }
             }
             case SUPPORT -> {
-                equipArmor(mob, EquipmentSlot.HEAD, new ItemStack(Items.CHAINMAIL_HELMET));
-                equipArmor(mob, EquipmentSlot.CHEST, enchanted(mob, new ItemStack(Items.CHAINMAIL_CHESTPLATE), Enchantments.PROTECTION, 1));
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.HEAD, new ItemStack(helmetFor(difficulty)));
+                }
+                if (roll(mob, chance)) {
+                    equipArmor(mob, EquipmentSlot.CHEST, enchanted(mob, new ItemStack(Items.CHAINMAIL_CHESTPLATE), Enchantments.PROTECTION, 1));
+                }
             }
             case NONE -> {
             }
         }
+    }
+
+    /** Per-piece equip probability: 0 at {@value #GEAR_MIN_DIFFICULTY}, 1 at {@value #GEAR_FULL_DIFFICULTY}. */
+    private static double gearChance(double difficulty) {
+        if (difficulty <= GEAR_MIN_DIFFICULTY) return 0.0;
+        return Math.min(1.0, (difficulty - GEAR_MIN_DIFFICULTY) / (GEAR_FULL_DIFFICULTY - GEAR_MIN_DIFFICULTY));
+    }
+
+    private static boolean roll(Mob mob, double chance) {
+        return chance >= 1.0 || mob.getRandom().nextDouble() < chance;
+    }
+
+    private static Item helmetFor(double difficulty) {
+        if (difficulty >= 0.70) return Items.IRON_HELMET;
+        if (difficulty >= 0.45) return Items.CHAINMAIL_HELMET;
+        return Items.LEATHER_HELMET;
+    }
+
+    private static Item chestplateFor(double difficulty) {
+        if (difficulty >= 0.70) return Items.IRON_CHESTPLATE;
+        if (difficulty >= 0.45) return Items.CHAINMAIL_CHESTPLATE;
+        return Items.LEATHER_CHESTPLATE;
+    }
+
+    private static Item axeFor(double difficulty) {
+        return difficulty >= 0.55 ? Items.IRON_AXE : Items.STONE_AXE;
     }
 
     private static void applyScale(Mob mob, Role role) {

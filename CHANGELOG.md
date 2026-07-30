@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.0
+
+Last major release for 26.1.2.
+
+- Added siege mining: zombies, illagers and ravagers break through walls to reach a target they cannot path to. Breaches heal themselves after `siegeMiningRestoreSeconds` (90 by default), so a siege forces a fight without permanently damaging your base; set `siegeMiningPermanent=true` to keep the damage. Only blocks in the `siegeMiningBlockTag` can be broken — obsidian, deepslate, metal blocks, containers and beds are excluded, so reinforcing a wall keeps it standing. Respects `mobGriefing`, and digging shows block cracks and sound before a block gives way.
+- Added creeper breaching: a creeper that cannot reach you closes on the wall in between and detonates against it.
+- Added ladder and vine climbing, so mobs no longer stall at the bottom of a shaft.
+- Added creeper, TNT and warden avoidance: nearby mobs scatter instead of walking into a blast.
+- Added boat and minecart escape, so a hostile parked in a vehicle breaks out.
+- Added difficulty-scaled bow cadence and accuracy for skeletons, tuned with `rangedAccuracyBonusMax` and `rangedCadenceBonusMax`.
+- Added ghast fireball volleys and varied blaze fireball timing and spread.
+- Added door opening for illagers, piglins and drowned: they work the handle instead of being stopped by a closed door, and shut it behind them. Zombies still break doors down rather than opening them.
+- Added tactical barks: mobs make a short sound when they commit to a tactic, so you can hear whether a squad is advancing, circling, pulling back, calling for help, about to lunge, or hunting for you. Six cues rather than one per tactic, quiet and throttled, and silent for tactics that already announce themselves. Disable with `tacticalBarksEnabled`.
+- Added nemesis scars: a named illager that escapes you remembers *how* the fight went and comes back adapted to it. Burn its squad down and it returns immune to fire; shoot it from range and it returns helmeted; cut it down in melee and it no longer staggers; blow it up and it returns armoured. The revenge party announces what changed, and `/warband intel` lists each survivor's scar.
+- Added perception cues: mobs now react when they half-notice you — stopping, turning to look and sniffing the air — and give a distinct all-clear sound once they have lost your trail. Crouching and darkness already shortened how far mobs could see you; this makes that audible, so hiding is something you can play around instead of guess at. Disable with `perceptionCuesEnabled`.
+- Added `customMobPools`, which opts modded mobs into Warband's behaviour pools so they gain the matching tactics and roles and squad up with their vanilla counterparts. Modded mobs that already extend a vanilla mob are picked up automatically and need no entry.
+- Added a one-time message the first time a player angers a faction, explaining the faction system and pointing at `/warband intel`.
+- Added `/warband debug stamp <difficulty>` for ops to re-stamp nearby hostiles at a chosen difficulty.
+- Changed difficulty progression to ramp instead of stepping. Role gear now fades in piece by piece and climbs leather → chainmail → iron rather than appearing as a full iron kit at one threshold, squad formations fade in over a band instead of switching on, and the spawn-distance and cave-depth curves are smoothed.
+- Changed `regionalSpawnRampBlocks` default 32 → 256; at 32 the world went from calm to fully hostile within a short walk. Existing configs keep their own value, so raise it by hand for the smoother curve.
+- Changed spider webs into a zoning tool: they lead a moving target, will not stack or re-trap a player already stuck, and spiders bite instead of webbing at point-blank range.
+- Changed early-game mob volume down, which also eases the lag reported in crowded areas.
+- Fixed undead abandoning a chase to huddle under nearby cover and pacing in and out of it. Pillaring up and breaking the base below no longer leaves zombies pinned under the leftover blocks; undead only seek shade when not chasing, and burn in daylight as in vanilla.
+- Fixed squad members being pulled back to the group while chasing, which stopped hordes from following a player any real distance.
+- Fixed `config/warband.properties` being read from the wrong folder on servers started outside the game directory, which made config edits look like they were discarded.
+- Fixed config edits needing a full game restart; the file is re-read when a world loads and on `/reload`.
+- Fixed creepers ignoring cats and ocelots.
+- Fixed spiders reaching a player and then never attacking, or stopping dead in front of them.
+- Fixed spider webs being inescapable once they landed.
+- Fixed squad members spawning inside terrain and on top of each other, which made hordes pile into one spot instead of reaching the player.
+- Fixed zombie encirclement giving up when its preferred approach was blocked, putting the whole squad back onto one path.
+- Fixed mobs freezing at walls instead of attacking. Siege mining tested whether it could reach you by pathing to the block you were standing in, which frequently reports "unreachable" even when you are plainly walkable-to, so mobs started digging against reachable players and stopped fighting while they did it.
+- Fixed cue sounds using one fixed noise for every mob, so a creeper announcing you sounded like an illager. Every mob now speaks in its own voice, with pitch and a layered accent carrying the meaning.
+- Fixed creepers staying primed after abandoning a breach, which made them detonate on nothing and made nearby mobs flee them on sight.
+- Removed zombie stacking. It could never fire — a minimum-distance check ruled it out in exactly the situation it was built for, and it tried to pathfind onto another mob's head, which the game cannot do. Leaping and siege mining cover the same ground and both work.
+
 ## 1.3.2
 
 - Added `/warband intel <player>` for ops to inspect another player's faction state.

@@ -18,6 +18,7 @@ import com.warband.spawn.AntiFarmDirector;
 import com.warband.spawn.BossDirector;
 import com.warband.spawn.EncounterDirector;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +40,15 @@ public final class WarbandMod implements ModInitializer {
     @Override
     public void onInitialize() {
         WarbandConfig.load(LOGGER);
+        registerConfigReloads();
         WarbandAttachments.init();
         com.warband.advancement.WarbandCriteria.init();
         PlayerScore.register();
         RegionalDifficulty.register();
         WarbandCommand.register();
         TemporaryTacticBlocks.register();
+        com.warband.ai.VehicleEscape.register();
+        com.warband.ai.PerceptionCues.register();
         EncounterDirector.register();
         AntiFarmDirector.register();
         BossDirector.register();
@@ -60,5 +64,21 @@ public final class WarbandMod implements ModInitializer {
         com.warband.illager.RaidEvolutionHandler.register();
 
         LOGGER.info("[Warband] initialized");
+    }
+
+    /**
+     * Re-read {@code config/warband.properties} whenever a world comes up, and on
+     * {@code /reload}.
+     *
+     * <p>{@code onInitialize} runs once per process launch. On a client that is
+     * before the title screen, so editing the config and then loading a world left
+     * the old values in memory — indistinguishable from "the config file doesn't
+     * save". Reloading on server start makes the edit-then-play loop work on
+     * single-player and dedicated servers alike, without needing
+     * {@code /warband reload}.
+     */
+    private static void registerConfigReloads() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> WarbandConfig.load(LOGGER));
+        ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) -> WarbandConfig.load(LOGGER));
     }
 }
