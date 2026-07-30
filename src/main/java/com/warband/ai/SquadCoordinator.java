@@ -53,7 +53,6 @@ import com.warband.entity.WarbandAttachments;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -166,12 +165,6 @@ public final class SquadCoordinator {
         });
     }
 
-    private static boolean hasWarbandGoals(Mob mob) {
-        for (WrappedGoal wrapped : ((MobGoalSelectorAccessor) mob).warband$goalSelector().getAvailableGoals()) {
-            if (wrapped.getGoal() instanceof WarbandGoal) return true;
-        }
-        return false;
-    }
 
     /**
      * Adds this mob to a nearby active squad, or starts a new one if difficulty
@@ -356,7 +349,6 @@ public final class SquadCoordinator {
         return lines;
     }
 
-    private static final double SQUAD_REGION_RADIUS = 64.0;
     private static final int MAX_EXTRA_PLAYERS = 8;
 
     /**
