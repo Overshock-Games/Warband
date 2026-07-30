@@ -4,7 +4,7 @@
 
 Last major release for 26.1.2.
 
-- Added siege mining: zombies, illagers and ravagers break through walls to reach a target they cannot path to. Breaches heal themselves after `siegeMiningRestoreSeconds` (90 by default), so a siege forces a fight without permanently damaging your base; set `siegeMiningPermanent=true` to keep the damage. Only blocks in the `siegeMiningBlockTag` can be broken — obsidian, deepslate, metal blocks, containers and beds are excluded, so reinforcing a wall keeps it standing. Respects `mobGriefing`, and digging shows block cracks and sound before a block gives way.
+- Added siege mining: zombies, illagers and ravagers break through walls to reach a target they cannot path to. Breaches heal themselves after `siegeMiningRestoreSeconds` (90 by default), so a siege forces a fight without permanently damaging your base; set `siegeMiningPermanent=true` to keep the damage. Only blocks in the `siegeMiningBlockTag` can be broken — obsidian, deepslate, metal blocks, containers and beds are excluded, so reinforcing a wall keeps it standing. Respects `mobGriefing`, and digging shows block cracks and sound before a block gives way. Dig time scales with block hardness, so soft cover gives way quickly and tough cover genuinely costs the attacker time.
 - Added creeper breaching: a creeper that cannot reach you closes on the wall in between and detonates against it.
 - Added ladder and vine climbing, so mobs no longer stall at the bottom of a shaft.
 - Added creeper, TNT and warden avoidance: nearby mobs scatter instead of walking into a blast.
@@ -12,7 +12,7 @@ Last major release for 26.1.2.
 - Added difficulty-scaled bow cadence and accuracy for skeletons, tuned with `rangedAccuracyBonusMax` and `rangedCadenceBonusMax`.
 - Added ghast fireball volleys and varied blaze fireball timing and spread.
 - Added door opening for illagers, piglins and drowned: they work the handle instead of being stopped by a closed door, and shut it behind them. Zombies still break doors down rather than opening them.
-- Added tactical barks: mobs make a short sound when they commit to a tactic, so you can hear whether a squad is advancing, circling, pulling back, calling for help, about to lunge, or hunting for you. Six cues rather than one per tactic, quiet and throttled, and silent for tactics that already announce themselves. Disable with `tacticalBarksEnabled`.
+- Added tactical barks: mobs make a short sound when they commit to a tactic, so you can hear whether a squad is advancing, circling, pulling back, calling for help, about to lunge, or hunting for you. Six cues rather than one per tactic, each spoken in that mob's own voice, quiet and throttled, and silent for tactics that already announce themselves. Disable with `tacticalBarksEnabled`.
 - Added Zombie Break & Build compatibility: when that mod is installed, Warband stands its own siege mining down rather than both mods tearing at the same wall. It does mob block manipulation far more thoroughly, so it owns the domain — everything else in Warband is unaffected, and creeper breaching stays Warband's since that is an explosion rather than mining. Set `siegeMiningDeferToOtherMods=false` to run both.
 - Added nemesis scars: a named illager that escapes you remembers *how* the fight went and comes back adapted to it. Burn its squad down and it returns immune to fire; shoot it from range and it returns helmeted; cut it down in melee and it no longer staggers; blow it up and it returns armoured. The revenge party announces what changed, and `/warband intel` lists each survivor's scar.
 - Added perception cues: mobs now react when they half-notice you — stopping, turning to look and sniffing the air — and give a distinct all-clear sound once they have lost your trail. Crouching and darkness already shortened how far mobs could see you; this makes that audible, so hiding is something you can play around instead of guess at. Disable with `perceptionCuesEnabled`.
@@ -32,12 +32,6 @@ Last major release for 26.1.2.
 - Fixed spider webs being inescapable once they landed.
 - Fixed squad members spawning inside terrain and on top of each other, which made hordes pile into one spot instead of reaching the player.
 - Fixed zombie encirclement giving up when its preferred approach was blocked, putting the whole squad back onto one path.
-- Fixed mobs freezing at walls instead of attacking. Siege mining tested whether it could reach you by pathing to the block you were standing in, which frequently reports "unreachable" even when you are plainly walkable-to, so mobs started digging against reachable players and stopped fighting while they did it.
-- Fixed siege mining picking the wrong block to dig. It guessed one block ahead at foot and head height, which misses what is actually blocking a wide mob, mistakes a fence or slab for the air above it, and misses obstructions on a diagonal. It now sweeps the mob's own hitbox toward the target and breaks the nearest block whose collision genuinely gets in the way.
-- Fixed a breach that could be dug open, reseal, and be dug open again forever. A resealed block is now briefly immune, so a standoff leaves the hole open instead of looping.
-- Changed dig time to scale with block hardness instead of a flat timer, so soft cover gives way quickly and tough cover genuinely costs the attacker time.
-- Fixed cue sounds using one fixed noise for every mob, so a creeper announcing you sounded like an illager. Every mob now speaks in its own voice, with pitch and a layered accent carrying the meaning.
-- Fixed creepers staying primed after abandoning a breach, which made them detonate on nothing and made nearby mobs flee them on sight.
 - Removed zombie stacking. It could never fire — a minimum-distance check ruled it out in exactly the situation it was built for, and it tried to pathfind onto another mob's head, which the game cannot do. Leaping and siege mining cover the same ground and both work.
 
 ## 1.3.2
