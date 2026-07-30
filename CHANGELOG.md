@@ -2,119 +2,31 @@
 
 ## 1.4.0
 
-Last release for 26.1.2. Subsequent updates target 26.2, which is not
-source-compatible (see `docs/PORTING-26.2.md`).
+Last release for 26.1.2. Later updates target 26.2.
 
-### Fixed
-
-- Fixed undead abandoning a chase to stand under nearby cover, then pacing in and
-  out of it. Sun-shelter ran at a higher goal priority than the vanilla attack
-  goal and never checked for a target, so pillaring up and breaking the base left
-  every zombie underneath pinned to the leftover blocks. Undead now only seek
-  shade out of combat, and burn while chasing, as in vanilla.
-- Fixed squad members being dragged back to the group while actively chasing. A
-  horde that bunched up would reel its own pursuers in, so mobs never followed a
-  player any real distance. Regrouping now only applies when nobody can see the
-  target.
-- Fixed `config/warband.properties` resolving against the process working
-  directory. Servers launched from anywhere but the game directory read and wrote
-  a different file than the one in the pack, so edits appeared to be discarded.
-- Fixed config edits not applying until a full game restart. The file is now
-  re-read when a world loads and on `/reload`.
-- Fixed creepers ignoring cats and ocelots. Vanilla's avoidance goal shares a
-  priority with Warband's regroup goal, and the goal selector cannot break a tie,
-  so whichever started first kept control of movement. Warband tactics now yield
-  entirely while a cat is within the vanilla fear radius.
-- Fixed spiders climbing to a player and then never attacking, or stopping dead
-  in front of them. Ceiling-crawl shared a priority with the vanilla spider
-  attack goal and held on to movement as long as the spider touched any wall.
-- Fixed spider webs being inescapable. Webs landed on the target's own block
-  every 3 seconds with no stacking check, so they hit the face with nowhere to
-  dodge and were reapplied the moment a player broke free.
-- Fixed squad formations spawning inside terrain and on top of each other, which
-  made hordes pile into one spot instead of reaching the player. Members now take
-  distinct bearings on a ring, and each slot is checked for real standing room.
-- Fixed zombie encirclement giving up when its preferred approach was blocked,
-  which put the whole squad back on one path.
-
-### Changed
-
-- Difficulty progression is a ramp rather than a staircase. Role gear was a hard
-  cutoff — nothing below difficulty 0.35, a full iron kit at it — and squad
-  formations and leaders unlocked in the same narrow band. Gear pieces now roll
-  independently on a curve from 0.25 to 0.80 and climb leather → chainmail →
-  iron, formations fade in from 0.35, and both the spawn-distance ramp and the
-  cave depth bonus are eased.
-- `regionalSpawnRampBlocks` default 32 → 256. At 32 the world went from fully
-  calm to fully hostile across one screen of travel. **Existing configs keep
-  their own value; raise it by hand to get the smoother curve.**
-- Spider webs are a zoning tool rather than a stun: they lead a moving target, so
-  movement is the counterplay, and spiders bite instead of webbing at point-blank
-  range.
-- Reduced early-game mob volume as a side effect of fading formations in, which
-  was also reported as a lag source.
-
-### Added — siege and anti-cheese
-
-The answer to a player with no valid path to them. Every system Warband already had
-— squads, morale, the shared blackboard, illager crusades that muster at your base —
-quietly ended at a fence post.
-
-- **Siege mining.** Zombies (0.55), illagers (0.60) and ravagers (0.50) break through
-  walls to reach a target they cannot path to. **Breaches heal by default**: the
-  original block is restored after `siegeMiningRestoreSeconds` (90s), because Warband
-  is a drop-in for existing worlds and a breach exists to force the fight, not to eat
-  your base. Set `siegeMiningPermanent=true` to keep the damage.
-  - Only engages when pathfinding has genuinely failed, never as a shortcut past open
-    ground.
-  - Only breaks blocks in the `siegeMiningBlockTag` (default `warband:siege_breakable`
-    — dirt, wood, cobble, glass, wool). **Obsidian, deepslate, metal blocks,
-    containers and beds are absent, so reinforcing a base is real counterplay.**
-  - Respects the `mobGriefing` gamerule, caps blocks per breach, and shows real
-    block-break cracks so a wall is always heard going before it goes.
-  - Restores refuse to overwrite anything you rebuilt, and wait rather than
-    materialise a block inside you.
-- **Creeper breaching** (0.60). A creeper that cannot reach its target closes on the
-  wall between you and detonates. Vanilla only swells within ~3 blocks of a
-  *reachable* target, so one layer of dirt made you immune to the one mob whose whole
-  identity is removing walls.
-- **Ladder and vine climbing** (0.30). Unlocks early on purpose: using a ladder is not
-  clever, it is the baseline expectation that a mob understands what it is touching.
-- **Explosion and warden avoidance** (0.35). Mobs scatter from swelling creepers, lit
-  TNT and wardens. A formation peeling away from one creeper reads as a group
-  reaction, not scenery.
-- **Vehicle anti-cheese.** Mobs parked in a boat or minecart break out. Not
-  difficulty-gated — that is an exploit at every difficulty.
-- **Ranged tuning.** Skeleton shot cadence and accuracy now scale with Warband
-  difficulty instead of only the world difficulty setting, bounded by
-  `rangedCadenceBonusMax` / `rangedAccuracyBonusMax`. Pillager crossbows are
-  unchanged; they have no equivalent hook.
-- **Ghast volleys and blaze fireball variation.** Both mobs were entirely predictable
-  — a fixed cadence on a fixed line. Volleys spread wide at low difficulty and
-  tighten as it climbs, layered on top of vanilla's attack goals rather than
-  replacing them.
-
-Not included: door opening (the 26.1.2 door-pathing flag moved to the node evaluator
-and needs accesswidener surgery for little gain — vanilla already breaks and opens
-doors) and silverfish reinforcements (vanilla already ships
-`SilverfishWakeUpFriendsGoal`; the config key is currently inert).
-
-### Added
-
-- Added `customMobPools`, opting modded mobs into Warband behaviour pools so they
-  gain the matching tactics and roles and squad up with their vanilla
-  counterparts. Mobs that already extend a vanilla class (most custom zombies) are
-  picked up automatically and need no entry.
-- Added a one-time explainer the first time a player earns faction heat. Every
-  other faction message announced a consequence — a revenge party, a bounty
-  hunter — without ever establishing that the faction system exists, so players
-  could not tell what they had triggered, or whether they had triggered anything.
-
-### Internal
-
-- Gradle 9.6.1, Loom 1.17.17, Fabric loader 0.19.3, Fabric API 0.155.2+26.1.2.
-- Shelter searches scan outward with an early exit instead of testing every block
-  in a ~2200-block volume on every recheck for every undead.
+- Added siege mining: zombies, illagers and ravagers break through walls to reach a target they cannot path to. Breaches heal themselves after `siegeMiningRestoreSeconds` (90 by default), so a siege forces a fight without permanently damaging your base; set `siegeMiningPermanent=true` to keep the damage. Only blocks in the `siegeMiningBlockTag` can be broken — obsidian, deepslate, metal blocks, containers and beds are excluded, so reinforcing a wall keeps it standing. Respects `mobGriefing`, and digging shows block cracks and sound before a block gives way.
+- Added creeper breaching: a creeper that cannot reach you closes on the wall in between and detonates against it.
+- Added ladder and vine climbing, so mobs no longer stall at the bottom of a shaft.
+- Added creeper, TNT and warden avoidance: nearby mobs scatter instead of walking into a blast.
+- Added boat and minecart escape, so a hostile parked in a vehicle breaks out.
+- Added difficulty-scaled bow cadence and accuracy for skeletons, tuned with `rangedAccuracyBonusMax` and `rangedCadenceBonusMax`.
+- Added ghast fireball volleys and varied blaze fireball timing and spread.
+- Added `customMobPools`, which opts modded mobs into Warband's behaviour pools so they gain the matching tactics and roles and squad up with their vanilla counterparts. Modded mobs that already extend a vanilla mob are picked up automatically and need no entry.
+- Added a one-time message the first time a player angers a faction, explaining the faction system and pointing at `/warband intel`.
+- Added `/warband debug stamp <difficulty>` for ops to re-stamp nearby hostiles at a chosen difficulty.
+- Changed difficulty progression to ramp instead of stepping. Role gear now fades in piece by piece and climbs leather → chainmail → iron rather than appearing as a full iron kit at one threshold, squad formations fade in over a band instead of switching on, and the spawn-distance and cave-depth curves are smoothed.
+- Changed `regionalSpawnRampBlocks` default 32 → 256; at 32 the world went from calm to fully hostile within a short walk. Existing configs keep their own value, so raise it by hand for the smoother curve.
+- Changed spider webs into a zoning tool: they lead a moving target, will not stack or re-trap a player already stuck, and spiders bite instead of webbing at point-blank range.
+- Changed early-game mob volume down, which also eases the lag reported in crowded areas.
+- Fixed undead abandoning a chase to huddle under nearby cover and pacing in and out of it. Pillaring up and breaking the base below no longer leaves zombies pinned under the leftover blocks; undead only seek shade when not chasing, and burn in daylight as in vanilla.
+- Fixed squad members being pulled back to the group while chasing, which stopped hordes from following a player any real distance.
+- Fixed `config/warband.properties` being read from the wrong folder on servers started outside the game directory, which made config edits look like they were discarded.
+- Fixed config edits needing a full game restart; the file is re-read when a world loads and on `/reload`.
+- Fixed creepers ignoring cats and ocelots.
+- Fixed spiders reaching a player and then never attacking, or stopping dead in front of them.
+- Fixed spider webs being inescapable once they landed.
+- Fixed squad members spawning inside terrain and on top of each other, which made hordes pile into one spot instead of reaching the player.
+- Fixed zombie encirclement giving up when its preferred approach was blocked, putting the whole squad back onto one path.
 
 ## 1.3.2
 
