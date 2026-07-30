@@ -58,7 +58,7 @@ Not gaps — worth knowing so they don't get "fixed" into parity:
 | Mobs climb ladders/vines | **Absent.** No `onClimbable` handling. Only `LEAP_UNREACHABLE` / `MOB_STACK_CLIMB`, gated at difficulty 0.65–0.80 | **Take** |
 | Break boats/minecarts they are stuck in | Absent | **Take** |
 | Mobs flee detonating creepers and ignited TNT | Absent. `FriendlyFireHandler` exists but is reactive only | **Take** |
-| Door opening | Absent | Consider |
+| Door opening | Absent | **Take** |
 | Skeleton/pillager shooting range, cooldown, accuracy knobs | Partial — `RangedRepositionGoal`, `SkeletonSmokeGoal`, no cadence/accuracy tuning | Consider |
 | Ghast fireball volleys; blaze fireball randomisation | Partial — `BlazeHoverGoal`, `GHAST_REPOSITION` reposition only | Consider |
 | Mobs flee Wardens | Absent (`WARDEN_PRESSURE` is the Warden's own tactic) | Consider |
@@ -108,7 +108,9 @@ what the feedback asked for by name.
 6. Ranged cadence/accuracy config for skeletons and pillagers.
 7. Ghast volleys, blaze fireball variation.
 8. Warden fear; silverfish reinforcements (reuse `CallBackupGoal`).
-9. Door opening for non-zombie humanoids.
+9. Door opening for non-zombie humanoids. *(Shipped: reserved for the
+   intelligent-humanoid set — illagers, piglins, drowned. Zombies excluded because
+   breaking the door down is their signature and vanilla already grants it on Hard.)*
 
 ## The guardrail that makes mining shippable
 
@@ -196,19 +198,31 @@ Further ideas worth prototyping after Tier 1, in rough order of fit:
 | Break out of boats/minecarts | `VehicleEscape` | ungated |
 | Ranged cadence + accuracy | `AbstractSkeletonRangedMixin` | scales from 0 |
 | Ghast volleys, blaze variation | `FireballVolley` | scales from 0 |
+| Door opening | `WarbandDoorGoal` | 0.40 |
 
 Reversible damage landed as designed: `TemporaryTacticBlocks` records the original
 `BlockState` and restores it, refusing to overwrite player rebuilds and retrying
 rather than materialising a block inside an entity.
 
+**Note on door opening.** An earlier revision of this doc claimed it needed
+accesswidener surgery because `GroundPathNavigation` exposes no door methods. That
+was wrong — the check stopped one call short. `PathNavigation.getNodeEvaluator()` is
+public, and `NodeEvaluator.setCanPassDoors` / `setCanOpenDoors` are public on top of
+it, so enabling door pathing is two lines and no widener. Shipped as
+`WarbandDoorGoal`.
+
+Two things worth keeping in mind for anyone extending it:
+
+- `OpenDoorGoal` only fires when the mob's **current path already routes onto a door
+  block**, and the node evaluator treats a closed door as impassable by default. So
+  the flag must be set or the goal is silently inert forever.
+- The goal is wrapped rather than used bare because Warband rebinds goals on every
+  world load and clears them with `goal instanceof WarbandGoal`. A raw
+  `OpenDoorGoal` would not match that filter and would accumulate one duplicate per
+  load.
+
 **Deliberately not done, with reasons:**
 
-- **Door opening.** In 26.1.2 the door-pathing flag is no longer on
-  `GroundPathNavigation`; it moved to the node evaluator, which needs an
-  accesswidener entry and a custom navigation path. Vanilla already breaks doors on
-  Hard (zombies) and opens them (vindicators), so the payoff did not justify that
-  surgery. Revisit during the 26.2 port, when the navigation classes are being
-  touched anyway.
 - **Silverfish reinforcements.** Not a real gap — vanilla already ships
   `Silverfish$SilverfishWakeUpFriendsGoal`, which wakes silverfish in nearby
   infested blocks on hurt. The config key `silverfishReinforcementsEnabled` exists

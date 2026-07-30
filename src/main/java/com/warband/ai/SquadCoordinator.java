@@ -34,6 +34,7 @@ import com.warband.ai.goal.SpiderLeapGoal;
 import com.warband.ai.goal.SpiderWebGoal;
 import com.warband.ai.goal.StickyPathGoal;
 import com.warband.ai.goal.WaterCommitGoal;
+import com.warband.ai.goal.WarbandDoorGoal;
 import com.warband.ai.goal.WarbandGoal;
 import com.warband.ai.goal.WitchSupportGoal;
 import com.warband.ai.goal.ZombieHordeGoal;
@@ -520,6 +521,16 @@ public final class SquadCoordinator {
         // Universal: use a ladder you are already standing on. No goal flags, so it
         // layers under the attack goal's pathing rather than fighting it.
         accessor.warband$goalSelector().addGoal(2, new ClimbToTargetGoal(mob));
+        // Doors, for the mobs already treated as intelligent enough to retreat.
+        // Requires opening up door pathing first, or the goal can never trigger —
+        // it only fires when the current path already routes onto a door block.
+        // Also flagless, so it never competes for movement.
+        if (canOpenDoors(mob) && WarbandDoorGoal.enableDoorPathing(mob)) {
+            accessor.warband$goalSelector().addGoal(2, new WarbandDoorGoal(mob));
+            // Logged on attach so a silent failure is diagnosable: "bound but never
+            // fired" is a very different bug from "never bound".
+            com.warband.WarbandDebug.event("DOOR_GOAL_BOUND", mob, null);
+        }
         // Passive horde-formation: out-of-combat zombies drift toward each
         // other so wanderers naturally cluster instead of starving solo.
         // Low priority so it never overrides combat/shelter behaviors.
@@ -564,6 +575,16 @@ public final class SquadCoordinator {
         return mob instanceof Raider
                 || mob instanceof AbstractPiglin
                 || mob instanceof Drowned;
+    }
+
+    /**
+     * Who understands a door handle: the same intelligent-humanoid set that knows to
+     * retreat, plus modded illagers via compat. Zombies are excluded on purpose —
+     * breaking the door down is their thing.
+     */
+    private static boolean canOpenDoors(Mob mob) {
+        if (mob instanceof Zombie) return false;
+        return canRetreat(mob) || IllagerInvasionCompat.isIllagerLike(mob);
     }
 
     private static boolean isSimpleFamily(Mob mob) {

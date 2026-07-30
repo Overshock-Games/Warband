@@ -233,6 +233,32 @@ Build a 6-block pillar with a ladder up one side; stand on top.
 - **PASS (log):** `EVENT=CLIMB mob=zombie id=… rise=…`
 - **[EYES]** Do they actually reach the top, or slide back down repeatedly?
 
+### C2b — Door opening **[LOG] [EYES]**
+
+Build a room with a **fully sealed** wooden-door wall between the mob and its target,
+then put an illager, piglin or drowned on the far side.
+
+```
+/summon minecraft:vindicator ~-6 ~ ~
+/warband debug stamp 0.9
+```
+
+- **PASS (log):** `EVENT=DOOR_GOAL_BOUND mob=vindicator id=…` then
+  `EVENT=DOOR_OPEN mob=vindicator id=… door=<x y z>`
+- **Confirmed working output from a dev-server run:**
+  ```
+  EVENT=DOOR_GOAL_BOUND mob=vindicator id=25 pos=13 101 -1
+  EVENT=DOOR_OPEN       mob=vindicator id=25 pos=15 101 0 door=16 102 0
+  ```
+- **`DOOR_GOAL_BOUND` but no `DOOR_OPEN`** means the mob never actually pathed
+  through the door. **Seal the wall completely** — the first attempt at this test
+  failed purely because the wall had a gap and the mob walked around it, which looks
+  identical to the feature being broken.
+- **No `DOOR_GOAL_BOUND` at all** means the mob is not in the eligible set. Zombies
+  are excluded on purpose; they break doors instead.
+- **[EYES]** Do they shut the door behind them? Does a squad filing through look
+  deliberate, or do they jam up fighting over it?
+
 ### C3 — Explosion / warden avoidance **[LOG]**
 
 ```
