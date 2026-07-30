@@ -54,6 +54,51 @@ source-compatible (see `docs/PORTING-26.2.md`).
 - Reduced early-game mob volume as a side effect of fading formations in, which
   was also reported as a lag source.
 
+### Added — siege and anti-cheese
+
+The answer to a player with no valid path to them. Every system Warband already had
+— squads, morale, the shared blackboard, illager crusades that muster at your base —
+quietly ended at a fence post.
+
+- **Siege mining.** Zombies (0.55), illagers (0.60) and ravagers (0.50) break through
+  walls to reach a target they cannot path to. **Breaches heal by default**: the
+  original block is restored after `siegeMiningRestoreSeconds` (90s), because Warband
+  is a drop-in for existing worlds and a breach exists to force the fight, not to eat
+  your base. Set `siegeMiningPermanent=true` to keep the damage.
+  - Only engages when pathfinding has genuinely failed, never as a shortcut past open
+    ground.
+  - Only breaks blocks in the `siegeMiningBlockTag` (default `warband:siege_breakable`
+    — dirt, wood, cobble, glass, wool). **Obsidian, deepslate, metal blocks,
+    containers and beds are absent, so reinforcing a base is real counterplay.**
+  - Respects the `mobGriefing` gamerule, caps blocks per breach, and shows real
+    block-break cracks so a wall is always heard going before it goes.
+  - Restores refuse to overwrite anything you rebuilt, and wait rather than
+    materialise a block inside you.
+- **Creeper breaching** (0.60). A creeper that cannot reach its target closes on the
+  wall between you and detonates. Vanilla only swells within ~3 blocks of a
+  *reachable* target, so one layer of dirt made you immune to the one mob whose whole
+  identity is removing walls.
+- **Ladder and vine climbing** (0.30). Unlocks early on purpose: using a ladder is not
+  clever, it is the baseline expectation that a mob understands what it is touching.
+- **Explosion and warden avoidance** (0.35). Mobs scatter from swelling creepers, lit
+  TNT and wardens. A formation peeling away from one creeper reads as a group
+  reaction, not scenery.
+- **Vehicle anti-cheese.** Mobs parked in a boat or minecart break out. Not
+  difficulty-gated — that is an exploit at every difficulty.
+- **Ranged tuning.** Skeleton shot cadence and accuracy now scale with Warband
+  difficulty instead of only the world difficulty setting, bounded by
+  `rangedCadenceBonusMax` / `rangedAccuracyBonusMax`. Pillager crossbows are
+  unchanged; they have no equivalent hook.
+- **Ghast volleys and blaze fireball variation.** Both mobs were entirely predictable
+  — a fixed cadence on a fixed line. Volleys spread wide at low difficulty and
+  tighten as it climbs, layered on top of vanilla's attack goals rather than
+  replacing them.
+
+Not included: door opening (the 26.1.2 door-pathing flag moved to the node evaluator
+and needs accesswidener surgery for little gain — vanilla already breaks and opens
+doors) and silverfish reinforcements (vanilla already ships
+`SilverfishWakeUpFriendsGoal`; the config key is currently inert).
+
 ### Added
 
 - Added `customMobPools`, opting modded mobs into Warband behaviour pools so they

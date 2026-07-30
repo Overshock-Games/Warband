@@ -4,6 +4,10 @@ Written for the 1.4.x → 1.5 planning pass, from user feedback naming Enhanced 
 as the comparison point. Every "Warband status" line below was checked against the
 1.4.0 source, not recalled.
 
+> **Status: Tier 1 and most of Tier 2 shipped in 1.4.0.** The gap table below
+> describes the state this analysis was written against; see "What shipped" at the
+> bottom for what is now closed and what deliberately was not.
+
 ## Baseline: there is no competitor on this platform
 
 | | Enhanced AI | Warband 1.4.0 |
@@ -83,9 +87,11 @@ This is one feature wearing four hats. Every item in it is a variation on *the
 player made themselves unreachable and the game had no answer*. It is also exactly
 what the feedback asked for by name.
 
-1. **Siege mining** (unlock ~0.55, tool-gated). Zombies and other diggers path to
-   the nearest block between them and a known target position and mine it. Needs an
-   allowlist block tag, a `mobGriefing` check, and per-mob rate limiting.
+1. **Siege mining** (unlock ~0.55). Zombies and other diggers path to the nearest
+   block between them and a known target position and mine it. Needs an allowlist
+   block tag, a `mobGriefing` check, and per-mob rate limiting. *(Shipped without a
+   tool requirement: block-break cracks and sound are already an unmistakable tell,
+   and requiring a pickaxe would mean reworking role loadouts for no added clarity.)*
 2. **Climbable blocks** (unlock ~0.30). Ladders and vines. Cheapest item on this
    list and it fixes a large slice of "mob stands at the bottom doing nothing".
 3. **Creeper breaching** (unlock ~0.60). A creeper that cannot path to the player
@@ -176,6 +182,48 @@ Further ideas worth prototyping after Tier 1, in rough order of fit:
   at a morale break — the pieces (morale, rout, crusades) all exist.
 - **Trap awareness.** Squads route around pressure plates and tripwires they have
   already been hurt by.
+
+## What shipped in 1.4.0
+
+**Closed:**
+
+| Gap | Implementation | Unlock |
+|---|---|---|
+| Zombies/illagers/ravagers mine toward target | `SiegeMineGoal`, `Tactic.SIEGE_MINE` | 0.55 / 0.60 / 0.50 |
+| Creeper breaching | `CreeperBreachGoal`, `Tactic.CREEPER_BREACH` | 0.60 |
+| Climb ladders/vines | `ClimbToTargetGoal` | 0.30 |
+| Flee creepers, TNT **and wardens** | `DreadAvoidGoal` | 0.35 |
+| Break out of boats/minecarts | `VehicleEscape` | ungated |
+| Ranged cadence + accuracy | `AbstractSkeletonRangedMixin` | scales from 0 |
+| Ghast volleys, blaze variation | `FireballVolley` | scales from 0 |
+
+Reversible damage landed as designed: `TemporaryTacticBlocks` records the original
+`BlockState` and restores it, refusing to overwrite player rebuilds and retrying
+rather than materialising a block inside an entity.
+
+**Deliberately not done, with reasons:**
+
+- **Door opening.** In 26.1.2 the door-pathing flag is no longer on
+  `GroundPathNavigation`; it moved to the node evaluator, which needs an
+  accesswidener entry and a custom navigation path. Vanilla already breaks doors on
+  Hard (zombies) and opens them (vindicators), so the payoff did not justify that
+  surgery. Revisit during the 26.2 port, when the navigation classes are being
+  touched anyway.
+- **Silverfish reinforcements.** Not a real gap — vanilla already ships
+  `Silverfish$SilverfishWakeUpFriendsGoal`, which wakes silverfish in nearby
+  infested blocks on hurt. The config key `silverfishReinforcementsEnabled` exists
+  but is currently unused; either wire it to an acceleration of the vanilla goal or
+  drop the key.
+- **Pillager ranged tuning.** `AbstractSkeleton` exposes `getAttackInterval()` /
+  `getHardAttackInterval()` as clean seams. Pillagers build
+  `RangedCrossbowAttackGoal` inline with a fixed interval and no equivalent hook, so
+  they are untouched rather than half-reworked.
+
+**Verification standard.** All of the above compiles, and a dev server was launched
+to confirm the mixin actually binds — `defaultRequire: 1` makes a wrong descriptor
+fatal at load, which a compile check cannot catch. Startup was clean with zero stack
+traces. None of it is playtested for *feel*: dig rates, breach cadence and volley
+density are first-pass numbers.
 
 ## Sources
 

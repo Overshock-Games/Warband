@@ -1,6 +1,7 @@
 package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
+import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -60,6 +61,9 @@ public final class ExtendedMobTacticGoal extends SquadGoal {
             mob.setDeltaMovement(mob.getDeltaMovement().add(away));
             logTactic(Tactic.GHAST_REPOSITION);
             level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), SoundEvents.GHAST_WARN, SoundSource.HOSTILE, 0.9f, 0.9f);
+            // Backing off used to be free for the player; cover the retreat with a
+            // spread volley so a ghast drifting away is still a threat.
+            com.warband.ai.FireballVolley.ghast(level, mob, target, MobData.get(mob).difficulty());
             return;
         }
 

@@ -10,6 +10,7 @@ Warband makes hostile mobs smarter, not spongier. Regions learn from the players
 - Multiplayer-aware pressure with threat memory, anti-dogpile targeting, local smart-mob budgets, death mercy areas, and limited shared squad intel
 - Illager factions with doctrines, banners, named ranks, mansion/outpost strongholds, Warmarshals, faction territories, grudges, heat that decays and shifts with rival kills, bounty hunters, raid finale boss summons, and rival interceptions
 - Boss upgrades, anti-farm behavior, golem support tools, goat horn interactions, debug commands, and a broad `config/warband.properties` tuning surface
+- Siege and anti-cheese: squads mine through walls, creepers breach shelters, mobs climb ladders, scatter from creepers and TNT, and break out of boats. Breaches **heal themselves** by default — reinforce with obsidian or metal and they hold
 - Modded mobs can be opted into Warband's behaviour pools via `customMobPools`, gaining the matching tactics and roles and squadding up with their vanilla counterparts
 
 ## Full Documentation -> [Wiki](https://github.com/Overshock-Studios/Warband/wiki)

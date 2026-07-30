@@ -1,7 +1,9 @@
 package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
+import com.warband.ai.FireballVolley;
 import com.warband.ai.TacticalEffects;
+import com.warband.entity.MobData;
 import com.warband.entity.Tactic;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -40,6 +42,13 @@ public final class BlazeHoverGoal extends SquadGoal {
         if (hover != null && moveTo(hover)) {
             logTactic(Tactic.BLAZE_HOVER);
             TacticalEffects.signal((ServerLevel) mob.level(), mob);
+            // Fire while relocating, so taking the high ground costs the player
+            // something instead of just being a repositioning animation.
+            LivingEntity target = visibleTarget();
+            if (target != null) {
+                FireballVolley.blaze((ServerLevel) mob.level(), mob, target,
+                        MobData.get(mob).difficulty());
+            }
         }
     }
 }
