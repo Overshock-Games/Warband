@@ -123,7 +123,7 @@ public final class IllagerGrudgeSystem {
         if (inFactionSeat(mob)) return;
 
         for (ServerPlayer participant : participantsNear((ServerLevel) mob.level(), mob, player)) {
-            recordWitnesses((ServerLevel) mob.level(), mob, participant, true, false);
+            recordWitnesses((ServerLevel) mob.level(), mob, participant, true, false, source);
         }
     }
 
@@ -158,7 +158,7 @@ public final class IllagerGrudgeSystem {
                             applyTerritoryMultiplier(FIELD_HEAT_PER_KILL, faction, territoryOwner),
                             now + BOUNTY_RETRY_TICKS);
                     boolean firstKill = !Boolean.TRUE.equals(participant.getAttached(WarbandAttachments.FIRST_KILL_GRACE_USED));
-                    recordWitnesses((ServerLevel) mob.level(), mob, participant, true, firstKill);
+                    recordWitnesses((ServerLevel) mob.level(), mob, participant, true, firstKill, source);
                     if (firstKill) {
                         participant.setAttached(WarbandAttachments.FIRST_KILL_GRACE_USED, true);
                         WarbandCriteria.fire(participant, WarbandCriteria.FACTION_NOTICED);
@@ -283,8 +283,11 @@ public final class IllagerGrudgeSystem {
     }
 
     private static void recordWitnesses(ServerLevel level, Mob victim, ServerPlayer player,
-                                        boolean includeVictim, boolean relaxNotable) {
+                                        boolean includeVictim, boolean relaxNotable,
+                                        DamageSource source) {
         long now = level.getGameTime();
+        // The lesson these witnesses take away: how they watched their ally die.
+        IllagerScar scar = IllagerScar.fromDamage(source);
         long originPos = victim.blockPosition().asLong();
         String originDimension = level.dimension().toString();
         AABB box = AABB.ofSize(victim.position(), WITNESS_RADIUS * 2.0, WITNESS_RADIUS, WITNESS_RADIUS * 2.0);
@@ -324,7 +327,8 @@ public final class IllagerGrudgeSystem {
                     now + SURVIVE_CONFIRM_TICKS,
                     now + SURVIVOR_EXPIRY_TICKS,
                     originPos,
-                    originDimension
+                    originDimension,
+                    scar
             ));
         }
     }
@@ -393,14 +397,15 @@ public final class IllagerGrudgeSystem {
         for (int i = 0; i < grudges.size(); i++) {
             IllagerGrudge existing = grudges.get(i);
             if (existing.survivorName().equals(survivor.name) && existing.faction() == survivor.faction) {
-                grudges.set(i, existing.addAnger(20, Math.min(existing.readyAt(), readyAt)));
+                grudges.set(i, existing.addAnger(20, Math.min(existing.readyAt(), readyAt))
+                        .withScar(survivor.scar));
                 player.setAttached(WarbandAttachments.ILLAGER_GRUDGES, trim(grudges));
                 addReputation(player, survivor.faction, 10, readyAt + BOUNTY_RETRY_TICKS);
                 return;
             }
         }
         grudges.add(new IllagerGrudge(survivor.name, survivor.faction, survivor.difficulty, 40, readyAt, 0,
-                survivor.originPos, survivor.originDimension));
+                survivor.originPos, survivor.originDimension, survivor.scar));
         player.setAttached(WarbandAttachments.ILLAGER_GRUDGES, trim(grudges));
         addReputation(player, survivor.faction, 20, readyAt + BOUNTY_RETRY_TICKS);
         // "Slipped away" introduces a named survivor — keep this in chat, not action bar.
@@ -423,7 +428,7 @@ public final class IllagerGrudgeSystem {
                 // unlucky rolls can quietly retire a grudge in ~9 minutes with no patrol spawned.
                 grudges.set(i, new IllagerGrudge(grudge.survivorName(), grudge.faction(), grudge.difficulty(),
                         grudge.anger(), now + RETRY_DELAY_TICKS, grudge.attempts(),
-                        grudge.originPos(), grudge.originDimension()));
+                        grudge.originPos(), grudge.originDimension(), grudge.scar()));
                 break;
             }
             List<IllagerGrudge> party = readyFactionGrudges(grudges, grudge.faction(), now);
@@ -460,7 +465,7 @@ public final class IllagerGrudgeSystem {
     public static boolean debugSpawnRevengeParty(ServerPlayer player, double difficulty) {
         IllagerFaction faction = IllagerFaction.pick(player.getUUID().hashCode() + player.getBlockX() * 31 + player.getBlockZ());
         IllagerGrudge grudge = new IllagerGrudge("Debug Captain", faction, (float) difficulty, 60, 0, 0,
-                player.blockPosition().asLong(), player.level().dimension().toString());
+                player.blockPosition().asLong(), player.level().dimension().toString(), IllagerScar.BLADE);
         return spawnRevengePatrol(player, List.of(grudge));
     }
 
@@ -481,8 +486,9 @@ public final class IllagerGrudgeSystem {
         if (!grudges.isEmpty()) {
             lines.add("Known survivors:");
             for (IllagerGrudge grudge : grudges) {
+                String scar = grudge.scar().marked() ? " " + grudge.scar().label() : "";
                 lines.add("  " + grudge.survivorName() + " / " + grudge.faction().displayName()
-                        + " anger " + grudge.anger() + " attempts " + grudge.attempts());
+                        + " anger " + grudge.anger() + " attempts " + grudge.attempts() + scar);
             }
         } else if (!reputations.isEmpty()) {
             lines.add("No named survivors yet — no notable illagers escaped to remember you.");
@@ -515,9 +521,20 @@ public final class IllagerGrudgeSystem {
         if (spawned.isEmpty()) return false;
 
         SquadCoordinator.createSquad(level, spawned, difficulty);
+        // The nemesis payoff: each named survivor comes back carrying the lesson of the
+        // fight it walked away from, and says so, so the player can connect the
+        // adaptation to their own past tactics rather than guessing.
+        List<String> boasts = new ArrayList<>();
         for (int i = 0; i < spawned.size() && i < grudges.size(); i++) {
             Mob returned = spawned.get(i);
-            returned.setCustomName(Component.literal(returnedName(grudges.get(i).survivorName())));
+            IllagerGrudge grudge = grudges.get(i);
+            returned.setCustomName(Component.literal(returnedName(grudge.survivorName())));
+            IllagerScar scar = grudge.scar();
+            if (!scar.marked()) continue;
+            scar.apply(returned);
+            if (boasts.size() < 2) {
+                boasts.add(returnedName(grudge.survivorName()) + " " + scar.boast());
+            }
         }
         for (Mob mob : spawned) {
             directVengeancePursuit(mob, player);
@@ -526,6 +543,9 @@ public final class IllagerGrudgeSystem {
         maybeSpawnRivalInterception(player, grudges.getFirst(), origin, difficulty, spawned);
         TacticalEffects.arrivalCue(level, origin.getCenter(), TacticalEffects.ArrivalCue.REVENGE);
         player.sendSystemMessage(Component.literal("Familiar horns answer from the " + faction.displayName() + "."), true);
+        for (String boast : boasts) {
+            player.sendSystemMessage(Component.literal("§7" + boast + "."));
+        }
         WarbandCriteria.fire(player, WarbandCriteria.FIRST_REVENGE);
         return true;
     }
@@ -998,6 +1018,6 @@ public final class IllagerGrudgeSystem {
 
     private record PendingSurvivor(UUID playerId, String name, IllagerFaction faction,
                                    float difficulty, long confirmAt, long expiresAt,
-                                   long originPos, String originDimension) {
+                                   long originPos, String originDimension, IllagerScar scar) {
     }
 }

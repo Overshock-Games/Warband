@@ -283,6 +283,26 @@ Let them engage you, then move so they have to reposition.
   gap worth reporting.
 - Set `tacticalBarksEnabled=false` and confirm silence returns.
 
+### C2d — Nemesis scars **[EYES]**
+
+Kill a *notable* factioned illager (outpost captain, banner-carrier) in front of
+witnesses, using a **specific** damage type — set one on fire, or shoot it. Let a
+survivor escape, then wait for the revenge patrol (or force it with
+`/warband debug revenge 0.9`, which spawns a deliberately blade-scarred captain).
+
+- **PASS:** `/warband intel` lists the survivor with a scar suffix, e.g.
+  `Yorn of the Ash Banner / Ash Banner anger 40 attempts 0 fire-scarred`
+- **PASS:** when the patrol arrives, a grey chat line names what changed —
+  *"Yorn the Returned walks through flame now."*
+- **PASS:** the adaptation is real, not cosmetic. A fire-scarred survivor should
+  actually ignore fire; an arrow-scarred one should visibly wear a helmet.
+- **[EYES]** Does the causal link land — can you tell the adaptation came from *your*
+  earlier tactics rather than a random buff?
+- **[EYES]** Is escalation fair? Killing them with the same weapon every time should
+  progressively stop working, which is the intended pressure to vary tactics.
+- **Save compatibility is covered by unit tests** (`IllagerScarTest`), including
+  grudges saved before scars existed, so no in-game check is needed for that.
+
 ### C3 — Explosion / warden avoidance **[LOG]**
 
 ```

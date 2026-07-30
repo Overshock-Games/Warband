@@ -42,7 +42,7 @@ behaviours — they are ways to make existing behaviour readable.
 |---|---|---|---|---|
 | **F.E.A.R. / Halo** | Squad *barks*: enemies announce intent out loud ("flanking left") | `TacticalEffects.roleCue`, existing 30-tactic mask | Low | **SHIPPED** — `TacticalBarks` |
 | **Thief / Splinter Cell** | Three-state awareness — unaware → suspicious → alert, each with a tell | `VisibilityRules`, `Squad.lastKnownPos` | Low | **Take** |
-| **Shadow of Mordor** | Nemesis *adaptation*: a survivor returns changed by how it nearly died | `IllagerGrudge` (already persists named survivors) | Low | **Take** |
+| **Shadow of Mordor** | Nemesis *adaptation*: a survivor returns changed by how it nearly died | `IllagerGrudge` (already persists named survivors) | Low | **SHIPPED** — `IllagerScar` |
 | **Shadow of Mordor** | Reputation → pre-emptive fear; grunts flee a player who slaughtered their army | `FactionReputation` heat, `Squad.morale` | Low | **Take** |
 | **Left 4 Dead** | Boomer bile: a mark that *summons* the horde onto you | `Squad.alertTo`, `broadcastDistress`, `WitchSupportGoal` | Low | Strong |
 | **XCOM** | Overwatch: a shooter holds its shot for the moment you break cover | `KiteGoal`, marksman role, ranged tuning | Medium | Strong |
@@ -103,7 +103,7 @@ Borrow Thief's escalation, expressed with vanilla tools:
 plus a pause and a sound. It converts a hidden system into a played-around-with one,
 and it rewards crouching, which currently does something real and invisible.
 
-## 3. Nemesis adaptation — Shadow of Mordor
+## 3. Nemesis adaptation — Shadow of Mordor *(shipped)*
 
 The nemesis system's core loop is not naming enemies — Warband already names them.
 It is **enemies that return changed by the specific way they beat or nearly lost to
@@ -151,7 +151,12 @@ and it hands the player a power fantasy the mod currently only ever takes away.
    search) hung off the existing tactic-announcement call, so cue coverage and debug
    coverage cannot drift apart. The `Tactic` switch is exhaustive with no default, so
    any future tactic must make an explicit bark-or-silent decision at compile time.
-2. **Nemesis adaptation** — biggest story payoff, and the state is already persisted.
+2. ~~**Nemesis adaptation**~~ — **shipped** as `IllagerScar`. The scar is read from how
+   the survivor watched its *ally* die, which was the data already in hand at witness
+   time and the better fiction besides. Every adaptation is functional rather than
+   cosmetic, and the arrival message names what changed so the player can connect it
+   to their own past tactics. Codec field is optional, so pre-1.4.0 saves keep their
+   survivors.
 3. **Awareness states** — makes an existing invisible system playable.
 4. **Reputation fear** — nearly free once heat is already tracked.
 5. Overwatch and flank rewards — give two existing tactics actual teeth.
