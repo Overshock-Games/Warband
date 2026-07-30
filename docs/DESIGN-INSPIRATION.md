@@ -91,17 +91,81 @@ perceived-intelligence-per-line change available.
 darkness-affected targets. **Players have no way to know that exists**, so stealth is
 an invisible mechanic and nobody plays around it.
 
-Borrow Thief's escalation, expressed with vanilla tools:
+### The constraint: the player is hiding
 
-- **Unaware** — normal.
-- **Suspicious** — mob stops, turns toward the last stimulus, plays an ambient sound,
-  waits ~1s. This is the tell. It also creates the *"did it see me?"* beat that makes
-  stealth tense.
-- **Alert** — normal targeting, plus the existing `Squad.alertTo` share.
+Every other cue in the mod can assume the player is looking at the fight. This one
+cannot. A hiding player is potentially behind cover, in the dark, at range, and facing
+the wrong way. That single fact eliminates most of the toolkit before design starts —
+**anything that requires seeing the mob is unreliable exactly when it matters most.**
 
-`lastKnownPos` and the perception tick already exist; this is mostly a state machine
-plus a pause and a sound. It converts a hidden system into a played-around-with one,
-and it rewards crouching, which currently does something real and invisible.
+### Two different questions, often conflated
+
+| | Question | Shape | Genre solution |
+|---|---|---|---|
+| **A** | "Has *that* mob noticed me?" | per-mob, positional | mob animation + barks |
+| **B** | "Am I hidden *right now*?" | player-global, continuous | Thief's light gem, Splinter Cell's meter |
+
+These need different channels. Conflating them is why stealth feedback usually ends up
+as a HUD element — but B is also the one that costs the most vanilla feel.
+
+### Every channel, and whether it survives the constraint
+
+| Channel | Through walls? | In darkness? | At range? | Verdict for awareness |
+|---|---|---|---|---|
+| Positional sound (`playSound`) | **yes** | **yes** | ~16 blocks, volume-scaled | **Primary.** The only channel that works when the player cannot see |
+| Sound *pitch* as a scalar | yes | yes | yes | **Use.** Free way to encode escalation without new sounds |
+| Mob stops moving | no | no | yes | **Primary visual.** Unmistakable, diegetic, costs nothing |
+| Mob head-turn toward stimulus (`getLookControl`) | no | no | yes | **Use.** The classic "it heard something" |
+| `setAggressive(boolean)` | no | no | yes | Marginal — drives some vanilla anim/AI; worth testing |
+| Particles above the mob | no | **yes** (self-lit) | yes | **Use sparingly.** Good escalation accent |
+| Action-bar text | n/a | n/a | n/a | For **B** only, and only on transition. Spammy per-tick |
+| Boss bar (`ServerBossEvent`) | n/a | n/a | n/a | **Reject** — see below |
+| Glowing on the mob | yes | yes | yes | **Reject** — too gamey, and already the bounty-mark language |
+| Glowing on the **player** | — | — | — | **Actively broken:** `VisibilityRules:46` treats GLOWING as bypassing every detection penalty, so this would delete stealth while trying to explain it |
+| Name tag / `?` icon | yes | yes | yes | **Reject** — `IllagerIdentity` deliberately sets `setCustomNameVisible(false)`, and floating text through walls is the exact complaint already received about unreadable illager names |
+| Equipment / scale change | no | no | yes | Too slow and heavy for a transient state |
+| Title / subtitle | n/a | n/a | n/a | Far too intrusive for a repeating state |
+
+### The recommendation
+
+**Suspicious** — the mob *stops*, *turns toward* the stimulus, plays a short
+questioning sound (pitch-shifted ambient), and after ~1s either escalates or
+de-escalates. The stop-and-turn is the tell for a player who can see; the sound is the
+tell for one who cannot. Both, always, because either may be unavailable.
+
+**Alert** — normal targeting, a sharper/louder cue, plus the existing
+`Squad.alertTo` share so the alarm spreads.
+
+**Lost you** — *the state most implementations forget, and the one that makes stealth
+playable.* A distinct "gave up" sound on the alert → unaware transition. Without it a
+player never learns they got away, so hiding has tension but no **resolution**, and
+the whole loop feels broken rather than tense. Thief and Metal Gear both spend a
+signature sound here. This should be the first thing built, not the last.
+
+Question **B** ("am I hidden?") should then be *inferable* rather than displayed: if
+you can hear mobs going suspicious instead of alert when you crouch, you learn the
+rule by playing. That teaches `VisibilityRules` without a tooltip and without a HUD.
+
+### Why not a detection meter
+
+A boss bar is the only true HUD available server-side, and a Thief-style light gem is
+the textbook solution to question B. It is still the wrong call here: it would be the
+single most un-vanilla element in the mod, it permanently occupies the boss-bar slot
+that a siege or a nemesis fight has a better claim to, and it replaces a skill
+(reading the world) with a readout. Worth a config flag at most, off by default.
+
+### Spam control
+
+Awareness cues inform *one player*, so they must be throttled **per player**, not per
+mob — otherwise 24 smart mobs produce 24 simultaneous "?" noises. Rules:
+
+- only the **nearest** mob in a transition barks,
+- only on state **transitions**, never while in a state,
+- one cue per player per ~1.5s,
+- and the "lost you" cue fires once per encounter, not per mob.
+
+This differs from `TacticalBarks`, which throttles per mob because it is describing
+what that specific mob is doing. Reusing that throttle here would be a bug.
 
 ## 3. Nemesis adaptation — Shadow of Mordor *(shipped)*
 
