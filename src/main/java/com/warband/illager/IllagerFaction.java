@@ -1,6 +1,7 @@
 package com.warband.illager;
 
 import com.mojang.serialization.Codec;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -15,12 +16,12 @@ public enum IllagerFaction {
     private static final List<IllagerFaction> VALUES = List.of(values());
 
     private final String id;
-    private final String displayName;
+    private final String fallbackName;
     private final FactionDoctrine doctrine;
 
-    IllagerFaction(String id, String displayName, FactionDoctrine doctrine) {
+    IllagerFaction(String id, String fallbackName, FactionDoctrine doctrine) {
         this.id = id;
-        this.displayName = displayName;
+        this.fallbackName = fallbackName;
         this.doctrine = doctrine;
     }
 
@@ -28,8 +29,17 @@ public enum IllagerFaction {
         return id;
     }
 
-    public String displayName() {
-        return displayName;
+    /**
+     * The faction's name as shown to a player.
+     *
+     * <p>Faction names are invented proper nouns, so most translators will leave them
+     * alone — but they appear inside sentences ("A crusade of the Pale Axe has come for
+     * you"), and a language that inflects those needs to be able to reach them. The
+     * English name is the fallback, so nothing breaks on a client without Warband
+     * resources.
+     */
+    public Component displayName() {
+        return Component.translatableWithFallback("warband.faction." + id, fallbackName);
     }
 
     public FactionDoctrine doctrine() {

@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.warband.spawn.SpawnDirector;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -48,9 +49,9 @@ public enum IllagerScar {
     BLADE("blade-scarred", "no longer staggers"),
     BLAST("blast-scarred", "came back armoured");
 
-    /** Short adjective for names and intel listings. */
+    /** English fallback for the short adjective used in names and intel listings. */
     private final String label;
-    /** Clause for the arrival message, so the adaptation is announced not guessed. */
+    /** English fallback for the arrival-message clause, so the adaptation is announced not guessed. */
     private final String boast;
 
     IllagerScar(String label, String boast) {
@@ -61,12 +62,20 @@ public enum IllagerScar {
     public static final Codec<IllagerScar> CODEC =
             Codec.STRING.xmap(IllagerScar::fromString, IllagerScar::name);
 
-    public String label() {
-        return label;
+    /** Short adjective for names and intel listings. */
+    public Component label() {
+        return text("label", label);
     }
 
-    public String boast() {
-        return boast;
+    /** Clause for the arrival message, so the adaptation is announced not guessed. */
+    public Component boast() {
+        return text("boast", boast);
+    }
+
+    private Component text(String suffix, String fallback) {
+        if (this == NONE) return Component.empty();
+        return Component.translatableWithFallback(
+                "warband.scar." + name().toLowerCase(Locale.ROOT) + "." + suffix, fallback);
     }
 
     public boolean marked() {

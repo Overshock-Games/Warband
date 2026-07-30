@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "illagerinvasion:alchemist", "required": false },
+    { "id": "illagerinvasion:archivist", "required": false },
+    { "id": "illagerinvasion:firecaller", "required": false },
+    { "id": "illagerinvasion:invoker", "required": false },
+    { "id": "illagerinvasion:necromancer", "required": false },
+    { "id": "illagerinvasion:provoker", "required": false },
+    { "id": "illagerinvasion:sorcerer", "required": false }
+  ]
+}

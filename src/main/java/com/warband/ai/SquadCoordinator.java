@@ -40,7 +40,7 @@ import com.warband.ai.goal.WarbandGoal;
 import com.warband.ai.goal.WitchSupportGoal;
 import com.warband.ai.goal.ZombieHordeGoal;
 import com.warband.ai.goal.ZombiePackGoal;
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.compat.RaidCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
@@ -583,7 +583,7 @@ public final class SquadCoordinator {
      */
     private static boolean canOpenDoors(Mob mob) {
         if (mob instanceof Zombie) return false;
-        return canRetreat(mob) || IllagerInvasionCompat.isIllagerLike(mob);
+        return canRetreat(mob) || IllagerKinds.isIllagerLike(mob);
     }
 
     private static boolean isSimpleFamily(Mob mob) {
@@ -708,7 +708,7 @@ public final class SquadCoordinator {
         // in illager invasions); MARKSMAN for anything ranged; otherwise BRUISER.
         // SKIRMISHER is no longer assigned procedurally, its kit collapses into
         // MARKSMAN, which shares the same kite/breakLOS goal block.
-        if (IllagerInvasionCompat.isSupport(mob)) return Role.SUPPORT;
+        if (IllagerKinds.isSupport(mob)) return Role.SUPPORT;
         if (mob instanceof RangedAttackMob) return Role.MARKSMAN;
         return Role.BRUISER;
     }
@@ -732,7 +732,7 @@ public final class SquadCoordinator {
                 || mob instanceof MagmaCube
                 || mob instanceof Hoglin
                 || mob instanceof Zoglin
-                || IllagerInvasionCompat.isIllagerLike(mob)
+                || IllagerKinds.isIllagerLike(mob)
                 || mob instanceof Phantom
                 || mob instanceof Guardian
                 || mob instanceof Shulker

@@ -1,6 +1,6 @@
 package com.warband.ai;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.entity.MobData;
 import com.warband.spawn.BossDirector;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -77,8 +77,8 @@ public final class FriendlyFireHandler {
             return (a instanceof Slime || a instanceof MagmaCube) && (b instanceof Slime || b instanceof MagmaCube);
         }
         if (a instanceof Blaze || b instanceof Blaze) return a instanceof Blaze && b instanceof Blaze;
-        if (IllagerInvasionCompat.isIllagerLike(a) || IllagerInvasionCompat.isIllagerLike(b)) {
-            return IllagerInvasionCompat.isIllagerLike(a) && IllagerInvasionCompat.isIllagerLike(b);
+        if (IllagerKinds.isIllagerLike(a) || IllagerKinds.isIllagerLike(b)) {
+            return IllagerKinds.isIllagerLike(a) && IllagerKinds.isIllagerLike(b);
         }
         return a.getType() == b.getType();
     }

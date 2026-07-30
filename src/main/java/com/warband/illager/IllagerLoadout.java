@@ -1,6 +1,6 @@
 package com.warband.illager;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.Role;
 import net.minecraft.core.Holder;
@@ -19,7 +19,7 @@ public final class IllagerLoadout {
     }
 
     public static void equip(Mob mob, Role role, double difficulty) {
-        if (!WarbandConfig.illagerRoleGearEnabled || !IllagerInvasionCompat.isIllagerLike(mob)) return;
+        if (!WarbandConfig.illagerRoleGearEnabled || !IllagerKinds.isIllagerLike(mob)) return;
         if (role == Role.NONE || difficulty < 0.35) return;
 
         switch (role) {

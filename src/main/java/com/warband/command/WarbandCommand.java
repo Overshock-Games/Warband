@@ -41,6 +41,18 @@ import java.util.List;
 /**
  * The {@code /warband} command. Ships {@code /warband difficulty} and
  * {@code /warband mobs}; more subcommands arrive with later phases.
+ *
+ * <p><b>Output here is deliberately literal, not translatable.</b> Everything the mod shows
+ * a player goes through a translation key — see {@code com.warband.text.WarbandText} — but
+ * this class is an operator's diagnostic readout: goal stacks, difficulty scalars, squad
+ * ids, tactic bitmasks. Those lines are formatted numbers whose labels match the debug
+ * event names in the logs, and keeping the two spellings identical is worth more than
+ * translating them. Adding ~40 keys nobody would translate would also bury the keys that
+ * matter in {@code en_us.json}.
+ *
+ * <p>The exception is {@code /warband intel}, which a normal player runs to read their own
+ * faction standing. That output is built as components by
+ * {@code IllagerGrudgeSystem.intelLines} and is fully translatable.
  */
 public final class WarbandCommand {
 
@@ -216,8 +228,8 @@ public final class WarbandCommand {
                 ? "[Warband] Faction intel for " + player.getName().getString()
                 : "[Warband] Faction diplomacy / intel";
         source.sendSuccess(() -> Component.literal(header), false);
-        for (String line : IllagerGrudgeSystem.intelLines(player)) {
-            source.sendSuccess(() -> Component.literal("  " + line), false);
+        for (Component line : IllagerGrudgeSystem.intelLines(player)) {
+            source.sendSuccess(() -> Component.literal("  ").append(line), false);
         }
         return 1;
     }
@@ -245,7 +257,7 @@ public final class WarbandCommand {
         IllagerGrudgeSystem.clearFactionForPlayer(target, faction);
         IllagerFaction f = faction;
         ctx.getSource().sendSuccess(() -> Component.literal(
-                "[Warband] Cleared " + f.displayName() + " grudges/heat from "
+                "[Warband] Cleared " + f.displayName().getString() + " grudges/heat from "
                         + target.getName().getString() + "."), true);
         return 1;
     }

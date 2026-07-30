@@ -1,6 +1,6 @@
 package com.warband.ai.goal;
 
-import net.minecraft.network.chat.Component;
+import com.warband.text.WarbandText;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -17,12 +17,18 @@ public final class BountyTauntGoal extends Goal {
 
     private static final int MIN_INTERVAL_TICKS = 20 * 10;
     private static final int MAX_INTERVAL_TICKS = 20 * 20;
-    private static final String[] LINES = {
-            "I can smell you from here.",
-            "You should have stayed home.",
-            "There is no leaving this debt unpaid.",
-            "Run. I prefer it when they run.",
-            "End of the road.",
+    /**
+      * Taunt lines, paired with the English each one falls back to.
+      *
+      * <p>Indexed keys rather than the text itself as the key, so a translator can change
+      * the wording without the mod's behaviour depending on the English.
+      */
+    private static final String[][] LINES = {
+            {"warband.taunt.smell", "I can smell you from here."},
+            {"warband.taunt.stayed_home", "You should have stayed home."},
+            {"warband.taunt.debt", "There is no leaving this debt unpaid."},
+            {"warband.taunt.run", "Run. I prefer it when they run."},
+            {"warband.taunt.end", "End of the road."},
     };
 
     private final Mob mob;
@@ -52,7 +58,8 @@ public final class BountyTauntGoal extends Goal {
         SoundEvent sound = pickSound();
         level.playSound(null, mob.getX(), mob.getY(), mob.getZ(), sound, SoundSource.HOSTILE, 1.1f, 0.85f);
         // Action bar — taunts are flavor, not chat clutter.
-        player.sendSystemMessage(Component.literal("§7\"" + LINES[mob.getRandom().nextInt(LINES.length)] + "\""), true);
+        String[] line = LINES[mob.getRandom().nextInt(LINES.length)];
+        player.sendSystemMessage(WarbandText.quoted(line[0], line[1]), true);
 
         nextTauntTick = mob.tickCount + MIN_INTERVAL_TICKS + mob.getRandom().nextInt(MAX_INTERVAL_TICKS - MIN_INTERVAL_TICKS);
     }

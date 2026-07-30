@@ -23,6 +23,64 @@ not a general linter; every rule exists because that exact mistake shipped at le
 | Unused private constants | Dead tuning knobs read as live config and mislead the next reader. |
 | Mixin helper without `@Unique` | A `warband$` prefix is convention only; `@Unique` makes the compiler enforce it. Shipped without it in 1.4.0. |
 | Config key/arg misalignment | `WarbandConfig.toPropertiesString()` interpolates ~100 args positionally. A mismatch throws `MissingFormatArgumentException` **at runtime**, so the config silently stops saving — a bug users actually reported. |
+| Hardcoded display text | `Component.literal("some English")` cannot be translated. Public feedback on 1.4.0: *"You should never hardcode displayed text ... otherwise your mod becomes pain in the ass to translate."* |
+| Concatenated display text | `"Warmarshal " + name` bakes English word order in even when both halves are translatable. |
+| Lang key missing from `en_us.json` | The fallback hides it in English, so it only ever shows up as untranslatable text in someone else's language. |
+
+## Displayed text
+
+**Always `Component.translatableWithFallback(key, english, args...)`.** Never
+`Component.literal` for anything a player reads, and never `Component.translatable` alone.
+
+The fallback is not optional politeness here — Warband is **server-side with no client
+mod**, so the player is normally on a vanilla client that has never heard of this mod.
+`Component.translatable` alone would show them `warband.rank.captain`. Sending both means a
+vanilla client renders the English and a client with a Warband language file renders the
+translation, with no branching on either side.
+
+Three rules that follow from it:
+
+- **The join is a key too.** "Bounty Hunter of the Pale Axe" is three pieces of text plus a
+  piece of English grammar. Use a pattern key with positional args —
+  `warband.name.with_faction` is `"%1$s %2$s of the %3$s"` — so a language that orders those
+  differently has something to hook. `WarbandText` holds the shared shapes.
+- **Never persist display text, and never parse it back.** `IllagerGrudge` used to store
+  `getCustomName().getString()` and recover the mob's name with
+  `indexOf(" of the ")`. That was already fragile if a server renamed a mob, and it cannot
+  survive translation at all. Store the datum (`personalName`, plus the faction as its own
+  field) and compose the display name at render time.
+- **Proper nouns stay literal.** "Arvek" is a name, not a string to translate.
+
+Exempt: `com.warband.command` — operator diagnostics whose labels deliberately match the
+`EVENT=` names in the logs. `/warband intel` is the exception inside the exception; a normal
+player reads it, so it returns components. The audit skips the whole package, so a new
+player-facing message added there will not be caught — put it elsewhere.
+
+## Recognising other mods' content
+
+**Use entity-type tags in `data/warband/tags/entity_type/`, not id matching in Java.** Public
+feedback on 1.4.0, on a namespace+path `switch` over ten Illager Invasion mobs: *"Tags would
+probably be useful here."*
+
+Matching ids in Java recognises exactly the one mod whose ids somebody typed in, and adding
+a second one needs a code change and a release. A tag is extensible by any datapack or any
+other mod without Warband knowing it exists. Every shipped entry needs
+`{ "id": "...", "required": false }` — that is what lets a tag name an entity type from a mod
+that is not installed without failing tag load.
+
+`IllagerInvasionCompat` is what is left over when this is done properly: a bare
+`isModLoaded()` check, which is a legitimate question. `IllagerKinds` holds the tag-driven
+predicates.
+
+Two things to keep in mind:
+
+- **Keep vanilla working by class as well.** `isIllagerLike` still tests
+  `instanceof AbstractIllager` before the tag, so a broken or `"replace": true` datapack
+  cannot switch the mod off by accident.
+- **Widening a tag changes gameplay.** Vanilla evokers are deliberately *not* in
+  `illager_support`, and the seat-boss check is still gated on `isModLoaded()`. Adding
+  vanilla types to those tags would silently reassign roles. A tag refactor should be
+  behaviour-neutral unless the change is the point.
 
 ## WARNINGS — each needs a deliberate answer, not a reflex
 
@@ -77,6 +135,21 @@ new ones.
 
 Heuristic — it counts `name(` calls and `::name` references, so it can still miss reflective
 or mixin-injected use. Confirm before deleting.
+
+Note it only looks at **private** members. `IllagerInvasionCompat.isSkirmisher` and
+`isBruiser` were public with zero callers and no check caught them; both are gone.
+
+### Per-mod id matching
+
+See "Recognising other mods' content" above. Warns rather than fails, because a genuine
+`isModLoaded()` presence check is fine — what it is looking for is a foreign namespace being
+matched together with `getPath()`.
+
+### Unused lang key
+
+Reported as a warning, not an error: a key can be legitimately staged ahead of the code that
+uses it. Keys built at runtime from an id or an enum name (`"warband.rank." + id`) are
+resolved by prefix, so they are not reported.
 
 ## What the audit cannot catch
 

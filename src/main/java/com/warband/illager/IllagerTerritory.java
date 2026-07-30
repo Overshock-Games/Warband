@@ -1,6 +1,6 @@
 package com.warband.illager;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.compat.StructureCompat;
 import com.warband.entity.MobData;
 import net.minecraft.core.BlockPos;
@@ -43,7 +43,7 @@ public final class IllagerTerritory {
     private static IllagerFaction dominantFactionNear(ServerLevel level, BlockPos pos, double radius, int minCount) {
         AABB box = AABB.ofSize(pos.getCenter(), radius * 2, 48.0, radius * 2);
         Map<IllagerFaction, Integer> counts = new EnumMap<>(IllagerFaction.class);
-        for (Mob mob : level.getEntitiesOfClass(Mob.class, box, m -> IllagerInvasionCompat.isIllagerLike(m) && MobData.isStamped(m))) {
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, box, m -> IllagerKinds.isIllagerLike(m) && MobData.isStamped(m))) {
             IllagerFaction faction = IllagerFactionSystem.factionOrDefault(mob);
             counts.merge(faction, 1, Integer::sum);
         }

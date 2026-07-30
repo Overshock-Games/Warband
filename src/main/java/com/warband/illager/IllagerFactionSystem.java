@@ -1,6 +1,6 @@
 package com.warband.illager;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.compat.StructureCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.WarbandAttachments;
@@ -18,7 +18,7 @@ public final class IllagerFactionSystem {
 
     public static void assignIfNeeded(Mob mob) {
         if (!WarbandConfig.illagerFactionsEnabled) return;
-        if (!IllagerInvasionCompat.isIllagerLike(mob)) return;
+        if (!IllagerKinds.isIllagerLike(mob)) return;
         if (!mob.hasAttached(WarbandAttachments.ILLAGER_FACTION)) {
             setFaction(mob, chooseFaction(mob));
         }

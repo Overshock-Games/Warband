@@ -1,6 +1,6 @@
 package com.warband.entity;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
@@ -201,7 +201,7 @@ public enum Tactic {
         if (mob instanceof Witch) subjects.add(Subject.WITCH);
         if (mob instanceof Slime || mob instanceof MagmaCube) subjects.add(Subject.SLIME_FAMILY);
         if (mob instanceof Hoglin || mob instanceof Zoglin) subjects.add(Subject.HOGLIN_FAMILY);
-        if (IllagerInvasionCompat.isIllagerLike(mob)) subjects.add(Subject.ILLAGER_LIKE);
+        if (IllagerKinds.isIllagerLike(mob)) subjects.add(Subject.ILLAGER_LIKE);
         if (mob instanceof Phantom) subjects.add(Subject.PHANTOM);
         if (mob instanceof Guardian) subjects.add(Subject.GUARDIAN);
         if (mob instanceof Shulker) subjects.add(Subject.SHULKER);

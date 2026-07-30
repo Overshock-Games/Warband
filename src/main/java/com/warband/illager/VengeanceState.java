@@ -1,5 +1,9 @@
 package com.warband.illager;
 
+import net.minecraft.network.chat.Component;
+
+import java.util.Locale;
+
 /** Faction-wide posture toward a player, derived from accumulated heat. */
 public enum VengeanceState {
     QUIET("quiet"),
@@ -9,14 +13,21 @@ public enum VengeanceState {
     WAR("at war"),
     CRUSADE("crusade");
 
-    private final String label;
+    private final String fallback;
 
-    VengeanceState(String label) {
-        this.label = label;
+    VengeanceState(String fallback) {
+        this.fallback = fallback;
     }
 
-    public String label() {
-        return label;
+    /**
+     * The posture as shown to a player.
+     *
+     * <p>Translatable with the English text as the fallback, so a vanilla client with no
+     * Warband resources still reads it while a translated one does not have to.
+     */
+    public Component displayName() {
+        return Component.translatableWithFallback(
+                "warband.vengeance." + name().toLowerCase(Locale.ROOT), fallback);
     }
 
     public static VengeanceState fromHeat(int heat) {

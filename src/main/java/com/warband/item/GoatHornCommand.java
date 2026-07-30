@@ -1,6 +1,6 @@
 package com.warband.item;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -51,7 +51,7 @@ public final class GoatHornCommand {
                 golem.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 20 * 12, 0, false, true));
             }
             for (Mob mob : serverLevel.getEntitiesOfClass(Mob.class, box, mob ->
-                    mob.isAlive() && MobData.isStamped(mob) && IllagerInvasionCompat.isIllagerLike(mob))) {
+                    mob.isAlive() && MobData.isStamped(mob) && IllagerKinds.isIllagerLike(mob))) {
                 mob.addEffect(new MobEffectInstance(MobEffects.GLOWING, 20 * 8, 0, false, true));
                 mob.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 20 * 8, 0, false, true));
                 if (mob.getTarget() == player) {

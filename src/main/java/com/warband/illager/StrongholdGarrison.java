@@ -2,6 +2,7 @@ package com.warband.illager;
 
 import com.warband.ai.SquadCoordinator;
 import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.compat.StructureCompat;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
@@ -47,7 +48,7 @@ public final class StrongholdGarrison {
             if (!WarbandConfig.illagerStrongholdsEnabled) return;
             if (!(entity instanceof Mob mob)) return;
             if (mob.isRemoved() || mob.isDeadOrDying() || !mob.isAlive()) return;
-            if (!IllagerInvasionCompat.isIllagerLike(mob)) return;
+            if (!IllagerKinds.isIllagerLike(mob)) return;
 
             BlockPos pos = mob.blockPosition();
             boolean seat = StructureCompat.inFactionSeat(level, pos);
@@ -115,7 +116,7 @@ public final class StrongholdGarrison {
 
     private static boolean isWarmarshalCandidate(Mob mob) {
         if (IllagerInvasionCompat.isLoaded()) {
-            return IllagerInvasionCompat.isSeatBossCandidate(mob);
+            return IllagerKinds.isSeatBossCandidate(mob);
         }
         return mob instanceof Evoker || mob instanceof Illusioner;
     }
@@ -124,7 +125,7 @@ public final class StrongholdGarrison {
                                                     SeatOfPowerState seatState) {
         if (seatState == null || seatState.isBroken(seatKey) || seatState.isCrowned(seatKey)) return;
         if (!isWarmarshalCandidate(mob) || nearbyWarmarshal(level, mob)) return;
-        if (!IllagerInvasionCompat.isLoaded() || IllagerInvasionCompat.isInvoker(mob)) {
+        if (!IllagerInvasionCompat.isLoaded() || IllagerKinds.isSummoner(mob)) {
             crownWarmarshal(level, mob, seatKey, seatState);
             return;
         }
@@ -173,7 +174,7 @@ public final class StrongholdGarrison {
                 other != mob
                         && other.isAlive()
                         && seatKey.equals(other.getAttached(WarbandAttachments.STRONGHOLD_SEAT_KEY))
-                        && IllagerInvasionCompat.isInvoker(other)).isEmpty();
+                        && IllagerKinds.isSummoner(other)).isEmpty();
     }
 
     private record PendingWarmarshal(ServerLevel level, UUID mobId, long readyAt) {

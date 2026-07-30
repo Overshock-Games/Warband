@@ -1,6 +1,6 @@
 package com.warband.ai;
 
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
@@ -19,7 +19,7 @@ public final class IllagerLoadGuard {
     }
 
     public static boolean tooDenseForHeavyDoctrine(Mob mob) {
-        if (!IllagerInvasionCompat.isIllagerLike(mob) || !(mob.level() instanceof ServerLevel level)) return false;
+        if (!IllagerKinds.isIllagerLike(mob) || !(mob.level() instanceof ServerLevel level)) return false;
         long now = level.getGameTime();
         CacheEntry cached = CACHE.get(mob);
         if (cached != null && now - cached.tick < CACHE_TICKS) {
@@ -27,7 +27,7 @@ public final class IllagerLoadGuard {
         }
         AABB box = AABB.ofSize(mob.position(), 48.0, 24.0, 48.0);
         int count = level.getEntitiesOfClass(Mob.class, box, candidate ->
-                candidate.isAlive() && IllagerInvasionCompat.isIllagerLike(candidate)).size();
+                candidate.isAlive() && IllagerKinds.isIllagerLike(candidate)).size();
         boolean dense = count > DENSE_ILLAGER_LIMIT;
         CACHE.put(mob, new CacheEntry(now, dense));
         return dense;

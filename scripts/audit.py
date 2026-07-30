@@ -13,6 +13,7 @@ Exit code 1 if any ERROR is found. WARNINGs are judgement calls and never fail t
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import re
 import sys
@@ -23,6 +24,7 @@ GOALS = MAIN / "com" / "warband" / "ai" / "goal"
 MIXINS = MAIN / "com" / "warband" / "mixin"
 COORDINATOR = MAIN / "com" / "warband" / "ai" / "SquadCoordinator.java"
 CONFIG = MAIN / "com" / "warband" / "config" / "WarbandConfig.java"
+LANG = ROOT / "src" / "main" / "resources" / "assets" / "warband" / "lang" / "en_us.json"
 
 errors: list[str] = []
 warnings: list[str] = []
@@ -244,6 +246,133 @@ def check_flagless_goals_moving_mobs() -> None:
         )
 
 
+# --------------------------------------------------------------- displayed text
+# Operator diagnostics stay literal on purpose — see WarbandCommand's class javadoc.
+LITERAL_TEXT_EXEMPT = {"command"}
+# Two real words next to each other. A command name, a key fragment or a separator is not prose.
+_PROSE = re.compile(r"[A-Za-z]{2,}\s+[A-Za-z]{2,}")
+# Strings shaped like a key but that name a file, not a translation.
+NOT_KEY_SUFFIXES = {"properties", "json", "txt", "log", "jar", "accesswidener", "toml"}
+
+
+def _literal_args(src: str):
+    """Yields (argument_source, line) for every Component.literal(...) call."""
+    for m in re.finditer(r"Component\.literal\(", src):
+        i, depth = m.end(), 1
+        while i < len(src) and depth:
+            if src[i] == '"':  # skip over string literals, including escapes
+                i += 1
+                while i < len(src) and src[i] != '"':
+                    i += 2 if src[i] == "\\" else 1
+            elif src[i] == "(":
+                depth += 1
+            elif src[i] == ")":
+                depth -= 1
+                if not depth:
+                    break
+            i += 1
+        yield src[m.end():i], src[: m.start()].count("\n") + 1
+
+
+def check_hardcoded_display_text() -> None:
+    """Component.literal("some English") shipped to a player cannot be translated.
+
+    Warband is server-side, so a player is normally on a vanilla client that has never
+    heard of this mod: Component.translatable alone would show them the raw key. The fix
+    is always translatableWithFallback(key, english) — the client renders whichever it
+    can. Public review of 1.4.0 put it plainly: "You should never hardcode displayed
+    text ... otherwise your mod becomes pain in the ass to translate."
+
+    Only Component.literal is checked, because that is the sink. A bare English string
+    passed around as a String is not yet a bug; it becomes one here.
+    """
+    for f in java_files():
+        if f.parent.name in LITERAL_TEXT_EXEMPT:
+            continue
+        src = f.read_text(encoding="utf-8")
+        for arg, line in _literal_args(src):
+            texts = re.findall(r'"((?:\\.|[^"\\])*)"', arg)
+            # A command name is an identifier, not prose — "/warband intel" stays literal.
+            if any(t.startswith("/") for t in texts):
+                continue
+            prose = [t for t in texts if _PROSE.search(t)]
+            # Gluing a literal onto a value bakes English word order in, even when neither
+            # half is prose on its own: "Warmarshal " + name.
+            glued = "+" in arg and any(t.strip() for t in texts)
+            if not prose and not glued:
+                continue
+            shown = (prose[0] if prose else next(t for t in texts if t.strip()))[:48]
+            detail = "concatenated display text" if glued and not prose else "hardcoded display text"
+            errors.append(
+                f"{detail}: {f.relative_to(ROOT)}:{line} -> "
+                f'"{shown}" (use Component.translatableWithFallback with %1$s args)'
+            )
+
+
+def check_lang_keys_resolve() -> None:
+    """Every warband.* key used in code should exist in en_us.json, and vice versa.
+
+    The fallback means a missing key is invisible in English, so this would otherwise only
+    surface as an untranslatable string in somebody else's language.
+    """
+    if not LANG.exists():
+        errors.append("lang: assets/warband/lang/en_us.json is missing")
+        return
+    try:
+        keys = set(json.loads(LANG.read_text(encoding="utf-8")))
+    except json.JSONDecodeError as exc:
+        errors.append(f"lang: en_us.json does not parse ({exc})")
+        return
+
+    used: set[str] = set()
+    prefixes: set[str] = set()
+    for f in java_files():
+        src = f.read_text(encoding="utf-8")
+        for key in re.findall(r'"(warband\.[\w.]+)"', src):
+            # "warband.properties" and friends are filenames that happen to match the shape.
+            if key.rsplit(".", 1)[-1] in NOT_KEY_SUFFIXES:
+                continue
+            # A trailing dot means the key is completed at runtime from an id or enum name.
+            (prefixes if key.endswith(".") else used).add(key)
+
+    for key in sorted(used - keys):
+        errors.append(f"lang: '{key}' is used in code but missing from en_us.json")
+    for prefix in sorted(prefixes):
+        if not any(k.startswith(prefix) for k in keys):
+            errors.append(f"lang: no key starts with '{prefix}'")
+    for key in sorted(keys - used):
+        if any(key.startswith(p) for p in prefixes):
+            continue
+        warnings.append(f"lang: '{key}' is defined but never used")
+
+
+# ----------------------------------------------------------- per-mod id hardcoding
+def check_hardcoded_mod_ids() -> None:
+    """Matching another mod's registry ids in Java only ever recognises that one mod.
+
+    Tags are the vanilla answer, and `"required": false` lets a shipped tag name entity
+    types from mods that are not installed. Public review of 1.4.0 said exactly this:
+    "Tags would probably be useful here."
+    """
+    known = {"minecraft", "warband", "c", "fabric"}
+    for f in java_files():
+        src = f.read_text(encoding="utf-8")
+        namespaces = {
+            m.group(1)
+            for m in re.finditer(r'"([a-z][a-z0-9_]{2,})"\s*\.equals\(\s*\w+\.getNamespace\(\)', src)
+        }
+        namespaces |= {m.group(1) for m in re.finditer(r'MOD_ID\s*=\s*"([a-z][a-z0-9_]{2,})"', src)}
+        foreign = namespaces - known
+        # A plain isModLoaded() presence check is fine; keying off ids is what tags replace.
+        if not foreign or "getPath()" not in src:
+            continue
+        warnings.append(
+            f"per-mod id matching: {f.relative_to(ROOT)} keys off "
+            f"{', '.join(sorted(foreign))} registry paths — prefer an entity_type tag so "
+            f"other mods work without a code change"
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--quiet", action="store_true", help="errors only")
@@ -258,6 +387,9 @@ def main() -> int:
         check_config_alignment,
         check_goal_priority_ties,
         check_flagless_goals_moving_mobs,
+        check_hardcoded_display_text,
+        check_lang_keys_resolve,
+        check_hardcoded_mod_ids,
     ):
         check()
 

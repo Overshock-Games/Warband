@@ -4,7 +4,7 @@ import com.warband.advancement.WarbandCriteria;
 import com.warband.ai.SquadCoordinator;
 import com.warband.ai.TacticalEffects;
 import com.warband.ai.MultiplayerDirector;
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.compat.RaidCompat;
 import com.warband.compat.StructureCompat;
 import com.warband.config.WarbandConfig;
@@ -14,6 +14,9 @@ import com.warband.entity.WarbandAttachments;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
+import com.warband.entity.IllagerIdentity;
+import com.warband.text.WarbandText;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -97,7 +100,8 @@ public final class IllagerGrudgeSystem {
             level.sendParticles(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING,
                     mob.getX(), mob.getY() + 1.0, mob.getZ(), 80, 0.6, 1.0, 0.6, 0.25);
             if (source.getEntity() instanceof ServerPlayer player) {
-                player.sendSystemMessage(Component.literal("§7\"Not yet. Not like this.\""), true);
+                player.sendSystemMessage(WarbandText.quoted("warband.grudge.totem",
+                        "Not yet. Not like this."), true);
             }
         }
         return true;
@@ -108,7 +112,7 @@ public final class IllagerGrudgeSystem {
         if (!(entity instanceof Mob mob) || damageTaken <= 0.0f || entity.isDeadOrDying()) return;
         if (!WarbandConfig.illagerGrudgesEnabled) return;
         if (!(source.getEntity() instanceof ServerPlayer player)) return;
-        if (!IllagerInvasionCompat.isIllagerLike(mob) || !MobData.isStamped(mob) || RaidCompat.isActiveRaider(mob)) {
+        if (!IllagerKinds.isIllagerLike(mob) || !MobData.isStamped(mob) || RaidCompat.isActiveRaider(mob)) {
             return;
         }
         if (isGrudgeSpawned(mob)) return;
@@ -132,7 +136,7 @@ public final class IllagerGrudgeSystem {
         if (WarbandConfig.illagerGrudgesEnabled
                 && entity instanceof Mob mob
                 && source.getEntity() instanceof ServerPlayer player
-                && IllagerInvasionCompat.isIllagerLike(mob)
+                && IllagerKinds.isIllagerLike(mob)
                 && MobData.isStamped(mob)
                 && !isGrudgeSpawned(mob)
                 && !RaidCompat.isActiveRaider(mob)
@@ -204,8 +208,8 @@ public final class IllagerGrudgeSystem {
         }
         clearFaction(player, faction);
         WarbandCriteria.fire((ServerPlayer) source.getEntity(), WarbandCriteria.WARMARSHAL_SLAIN);
-        player.sendSystemMessage(Component.literal(
-                "The " + faction.displayName() + " falls into disarray, its Warmarshal is dead."));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.faction.disarray",
+                "The %s falls into disarray, its Warmarshal is dead.", faction.displayName()));
         return true;
     }
 
@@ -225,14 +229,16 @@ public final class IllagerGrudgeSystem {
         if (Boolean.TRUE.equals(player.getAttached(WarbandAttachments.FACTION_INTRODUCED))) return;
         player.setAttached(WarbandAttachments.FACTION_INTRODUCED, true);
 
-        player.sendSystemMessage(Component.literal(
-                "§6The " + faction.displayName() + " have marked you."));
-        player.sendSystemMessage(Component.literal(
-                "§7Illagers belong to five rival factions. They remember who kills their own, "
+        player.sendSystemMessage(Component.translatableWithFallback("warband.faction.marked",
+                "The %s have marked you.", faction.displayName()).withStyle(ChatFormatting.GOLD));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.faction.intro",
+                "Illagers belong to five rival factions. They remember who kills their own, "
                         + "and send patrols, revenge parties and bounty hunters after them. "
-                        + "Helping a faction's rival cools them down."));
-        player.sendSystemMessage(Component.literal(
-                "§7Check where you stand with §f/warband intel§7."));
+                        + "Helping a faction's rival cools them down.").withStyle(ChatFormatting.GRAY));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.faction.intro_hint",
+                "Check where you stand with %s.",
+                Component.literal("/warband intel").withStyle(ChatFormatting.WHITE))
+                .withStyle(ChatFormatting.GRAY));
     }
 
     /** Wipe every faction's grudges and reputation from this player. Op-side full reset. */
@@ -296,7 +302,7 @@ public final class IllagerGrudgeSystem {
         List<Mob> candidates = level.getEntitiesOfClass(Mob.class, box, mob ->
                 mob.isAlive()
                         && MobData.isStamped(mob)
-                        && IllagerInvasionCompat.isIllagerLike(mob)
+                        && IllagerKinds.isIllagerLike(mob)
                         && !isGrudgeSpawned(mob)
                         && (includeVictim || mob != victim)
                         && (mob == victim || mob.hasLineOfSight(victim) || mob.distanceToSqr(victim) < 12.0 * 12.0));
@@ -318,7 +324,9 @@ public final class IllagerGrudgeSystem {
 
         for (Mob witness : witnesses) {
             if (witness == victim && witness.isDeadOrDying()) continue;
-            String name = witness.hasCustomName() ? witness.getCustomName().getString() : "Pillager";
+            // The bare name, never the rendered display name: this gets persisted, and save
+            // data must not depend on how the mob happens to be labelled right now.
+            String name = IllagerIdentity.personalName(witness);
             PENDING.put(witness.getUUID(), new PendingSurvivor(
                     player.getUUID(),
                     name,
@@ -396,7 +404,7 @@ public final class IllagerGrudgeSystem {
         List<IllagerGrudge> grudges = new ArrayList<>(grudges(player));
         for (int i = 0; i < grudges.size(); i++) {
             IllagerGrudge existing = grudges.get(i);
-            if (existing.survivorName().equals(survivor.name) && existing.faction() == survivor.faction) {
+            if (existing.personalName().equals(survivor.name) && existing.faction() == survivor.faction) {
                 grudges.set(i, existing.addAnger(20, Math.min(existing.readyAt(), readyAt))
                         .withScar(survivor.scar));
                 player.setAttached(WarbandAttachments.ILLAGER_GRUDGES, trim(grudges));
@@ -409,9 +417,9 @@ public final class IllagerGrudgeSystem {
         player.setAttached(WarbandAttachments.ILLAGER_GRUDGES, trim(grudges));
         addReputation(player, survivor.faction, 20, readyAt + BOUNTY_RETRY_TICKS);
         // "Slipped away" introduces a named survivor — keep this in chat, not action bar.
-        player.sendSystemMessage(Component.literal(
-                survivor.name + " slipped away, the " + survivor.faction.displayName()
-                        + " will remember this."));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.grudge.escaped",
+                "%1$s slipped away, the %2$s will remember this.",
+                survivor.name, survivor.faction.displayName()));
         WarbandCriteria.fire(player, WarbandCriteria.FIRST_GRUDGE);
     }
 
@@ -426,7 +434,7 @@ public final class IllagerGrudgeSystem {
             if (player.getRandom().nextFloat() > 0.35f) {
                 // Random gate miss — reschedule without burning an attempt, otherwise
                 // unlucky rolls can quietly retire a grudge in ~9 minutes with no patrol spawned.
-                grudges.set(i, new IllagerGrudge(grudge.survivorName(), grudge.faction(), grudge.difficulty(),
+                grudges.set(i, new IllagerGrudge(grudge.personalName(), grudge.faction(), grudge.difficulty(),
                         grudge.anger(), now + RETRY_DELAY_TICKS, grudge.attempts(),
                         grudge.originPos(), grudge.originDimension(), grudge.scar()));
                 break;
@@ -464,34 +472,45 @@ public final class IllagerGrudgeSystem {
 
     public static boolean debugSpawnRevengeParty(ServerPlayer player, double difficulty) {
         IllagerFaction faction = IllagerFaction.pick(player.getUUID().hashCode() + player.getBlockX() * 31 + player.getBlockZ());
-        IllagerGrudge grudge = new IllagerGrudge("Debug Captain", faction, (float) difficulty, 60, 0, 0,
+        IllagerGrudge grudge = new IllagerGrudge("Debug", faction, (float) difficulty, 60, 0, 0,
                 player.blockPosition().asLong(), player.level().dimension().toString(), IllagerScar.BLADE);
         return spawnRevengePatrol(player, List.of(grudge));
     }
 
-    public static List<String> intelLines(ServerPlayer player) {
-        List<String> lines = new ArrayList<>();
+    /**
+     * The {@code /warband intel} readout.
+     *
+     * <p>Components rather than strings: this is the one command output a normal player
+     * reads rather than an operator debugging a server, so it goes through the same
+     * translation path as every other player-facing message.
+     */
+    public static List<Component> intelLines(ServerPlayer player) {
+        List<Component> lines = new ArrayList<>();
         List<IllagerGrudge> grudges = grudges(player);
         List<FactionReputation> reputations = reputations(player);
         if (grudges.isEmpty() && reputations.isEmpty()) {
-            return List.of("No faction intel on you yet. Kill a factioned illager and they will start to take notice.");
+            return List.of(Component.translatableWithFallback("warband.intel.none",
+                    "No faction intel on you yet. Kill a factioned illager and they will start to take notice."));
         }
         if (!reputations.isEmpty()) {
-            lines.add("Faction heat:");
+            lines.add(Component.translatableWithFallback("warband.intel.heat", "Faction heat:"));
             for (FactionReputation reputation : reputations) {
-                lines.add("  " + reputation.faction().displayName() + ": " + reputation.heat()
-                        + " (" + reputation.state().label() + ")");
+                lines.add(Component.translatableWithFallback("warband.intel.heat_line", "  %1$s: %2$s (%3$s)",
+                        reputation.faction().displayName(), reputation.heat(),
+                        reputation.state().displayName()));
             }
         }
         if (!grudges.isEmpty()) {
-            lines.add("Known survivors:");
+            lines.add(Component.translatableWithFallback("warband.intel.survivors", "Known survivors:"));
             for (IllagerGrudge grudge : grudges) {
-                String scar = grudge.scar().marked() ? " " + grudge.scar().label() : "";
-                lines.add("  " + grudge.survivorName() + " / " + grudge.faction().displayName()
-                        + " anger " + grudge.anger() + " attempts " + grudge.attempts() + scar);
+                lines.add(Component.translatableWithFallback("warband.intel.survivor_line",
+                        "  %1$s / %2$s anger %3$s attempts %4$s %5$s",
+                        grudge.personalName(), grudge.faction().displayName(),
+                        grudge.anger(), grudge.attempts(), grudge.scar().label()));
             }
         } else if (!reputations.isEmpty()) {
-            lines.add("No named survivors yet — no notable illagers escaped to remember you.");
+            lines.add(Component.translatableWithFallback("warband.intel.no_survivors",
+                    "No named survivors yet — no notable illagers escaped to remember you."));
         }
         return lines;
     }
@@ -524,16 +543,18 @@ public final class IllagerGrudgeSystem {
         // The nemesis payoff: each named survivor comes back carrying the lesson of the
         // fight it walked away from, and says so, so the player can connect the
         // adaptation to their own past tactics rather than guessing.
-        List<String> boasts = new ArrayList<>();
+        List<Component> boasts = new ArrayList<>();
         for (int i = 0; i < spawned.size() && i < grudges.size(); i++) {
             Mob returned = spawned.get(i);
             IllagerGrudge grudge = grudges.get(i);
-            returned.setCustomName(Component.literal(returnedName(grudge.survivorName())));
+            Component name = returnedName(grudge.personalName());
+            returned.setCustomName(name);
             IllagerScar scar = grudge.scar();
             if (!scar.marked()) continue;
             scar.apply(returned);
             if (boasts.size() < 2) {
-                boasts.add(returnedName(grudge.survivorName()) + " " + scar.boast());
+                boasts.add(Component.translatableWithFallback("warband.grudge.boast", "%1$s %2$s.",
+                        name, scar.boast()).withStyle(ChatFormatting.GRAY));
             }
         }
         for (Mob mob : spawned) {
@@ -542,9 +563,10 @@ public final class IllagerGrudgeSystem {
 
         maybeSpawnRivalInterception(player, grudges.getFirst(), origin, difficulty, spawned);
         TacticalEffects.arrivalCue(level, origin.getCenter(), TacticalEffects.ArrivalCue.REVENGE);
-        player.sendSystemMessage(Component.literal("Familiar horns answer from the " + faction.displayName() + "."), true);
-        for (String boast : boasts) {
-            player.sendSystemMessage(Component.literal("§7" + boast + "."));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.revenge.arrival",
+                "Familiar horns answer from the %s.", faction.displayName()), true);
+        for (Component boast : boasts) {
+            player.sendSystemMessage(boast);
         }
         WarbandCriteria.fire(player, WarbandCriteria.FIRST_REVENGE);
         return true;
@@ -634,8 +656,8 @@ public final class IllagerGrudgeSystem {
         SquadCoordinator.createSquad(level, spawned, difficulty);
         for (Mob mob : spawned) directVengeancePursuit(mob, player);
         TacticalEffects.arrivalCue(level, origin.getCenter(), TacticalEffects.ArrivalCue.WAR_PATROL);
-        player.sendSystemMessage(Component.literal(
-                "A war patrol of the " + reputation.faction().displayName() + " moves to find you."), true);
+        player.sendSystemMessage(Component.translatableWithFallback("warband.patrol.arrival",
+                "A war patrol of the %s moves to find you.", reputation.faction().displayName()), true);
         WarbandCriteria.fire(player, WarbandCriteria.FACTION_AT_WAR);
         return true;
     }
@@ -669,11 +691,12 @@ public final class IllagerGrudgeSystem {
         if (spawned.isEmpty()) return false;
         SquadCoordinator.createSquad(level, spawned, difficulty);
         Mob leader = spawned.getFirst();
-        leader.setCustomName(Component.literal("Crusade Captain of the " + reputation.faction().displayName()));
+        leader.setCustomName(WarbandText.titleOfFaction("warband.title.crusade_captain", "Crusade Captain",
+                reputation.faction()));
         for (Mob mob : spawned) directVengeancePursuit(mob, player);
         TacticalEffects.arrivalCue(level, origin.getCenter(), TacticalEffects.ArrivalCue.CRUSADE);
-        player.sendSystemMessage(Component.literal(
-                "A crusade of the " + reputation.faction().displayName() + " has come for you."), true);
+        player.sendSystemMessage(Component.translatableWithFallback("warband.crusade.arrival",
+                "A crusade of the %s has come for you.", reputation.faction().displayName()), true);
         WarbandCriteria.fire(player, WarbandCriteria.CRUSADE_CALLED);
         return true;
     }
@@ -689,7 +712,8 @@ public final class IllagerGrudgeSystem {
         IllagerFactionSystem.setFaction(hunter, reputation.faction());
         markGrudgeSpawned(hunter);
         SquadCoordinator.createSquad(level, List.of(hunter), difficulty);
-        hunter.setCustomName(Component.literal("Bounty Hunter of the " + reputation.faction().displayName()));
+        hunter.setCustomName(WarbandText.titleOfFaction("warband.title.bounty_hunter", "Bounty Hunter",
+                reputation.faction()));
         hunter.setAttached(WarbandAttachments.BOUNTY_HUNTER, true);
         buffBountyHunter(hunter);
         equipBountyHunter(hunter);
@@ -721,7 +745,8 @@ public final class IllagerGrudgeSystem {
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
                 net.minecraft.sounds.SoundEvents.RAID_HORN.value(), net.minecraft.sounds.SoundSource.HOSTILE, 0.6f, 0.55f);
         TacticalEffects.arrivalCue(level, origin.getCenter(), TacticalEffects.ArrivalCue.BOUNTY);
-        player.sendSystemMessage(Component.literal("A bounty hunter from the " + reputation.faction().displayName() + " has your trail."), true);
+        player.sendSystemMessage(Component.translatableWithFallback("warband.bounty.arrival",
+                "A bounty hunter from the %s has your trail.", reputation.faction().displayName()), true);
         WarbandCriteria.fire(player, WarbandCriteria.BOUNTY_SUMMONED);
         return true;
     }
@@ -755,10 +780,10 @@ public final class IllagerGrudgeSystem {
         if (spawned.isEmpty()) return;
         SquadCoordinator.createSquad(level, spawned, rivalDifficulty);
         Mob leader = spawned.getFirst();
-        leader.setCustomName(Component.literal("Rival Scout of the " + rival.displayName()));
-        player.sendSystemMessage(Component.literal(
-                "Rivals from the " + rival.displayName() + " move to intercept the "
-                        + grudge.faction().displayName() + "."), true);
+        leader.setCustomName(WarbandText.titleOfFaction("warband.title.rival_scout", "Rival Scout", rival));
+        player.sendSystemMessage(Component.translatableWithFallback("warband.rival.intercept",
+                "Rivals from the %1$s move to intercept the %2$s.",
+                rival.displayName(), grudge.faction().displayName()), true);
     }
 
     private static Mob spawnMember(ServerLevel level, BlockPos pos, double difficulty, int index) {
@@ -922,15 +947,15 @@ public final class IllagerGrudgeSystem {
         return total;
     }
 
-    private static String returnedName(String survivorName) {
-        String clean = survivorName;
-        int factionIndex = clean.indexOf(" of the ");
-        if (factionIndex >= 0) {
-            clean = clean.substring(0, factionIndex);
-        }
-        String[] parts = clean.trim().split("\\s+");
-        String personalName = parts.length == 0 ? "Survivor" : parts[parts.length - 1];
-        return personalName + " the Returned";
+    /**
+     * The name a survivor wears when it comes back.
+     *
+     * <p>Reads the bare name straight off the grudge. This used to rebuild it by searching
+     * a stored display string for " of the " and keeping the last word before it — see
+     * {@link IllagerGrudge} for why that is gone.
+     */
+    private static Component returnedName(String personalName) {
+        return Component.translatableWithFallback("warband.name.returned", "%s the Returned", personalName);
     }
 
     /**

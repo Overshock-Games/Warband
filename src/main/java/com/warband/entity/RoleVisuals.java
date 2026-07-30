@@ -2,7 +2,7 @@ package com.warband.entity;
 
 import com.warband.WarbandMod;
 import com.warband.ai.TacticalEffects;
-import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.config.WarbandConfig;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -42,7 +42,7 @@ public final class RoleVisuals {
         TacticalEffects.roleCue(mob, role);
         if (!WarbandConfig.roleVisualsEnabled) return;
         applyScale(mob, role);
-        if (IllagerInvasionCompat.isIllagerLike(mob)) return;
+        if (IllagerKinds.isIllagerLike(mob)) return;
 
         // Each piece rolls independently, and armour tier climbs with difficulty.
         // This used to be a hard cutoff at 0.35: one step earlier a mob had nothing,

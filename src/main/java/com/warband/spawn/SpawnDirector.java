@@ -3,6 +3,7 @@ package com.warband.spawn;
 import com.warband.WarbandMod;
 import com.warband.ai.SquadCoordinator;
 import com.warband.compat.IllagerInvasionCompat;
+import com.warband.compat.IllagerKinds;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.IllagerIdentity;
 import com.warband.difficulty.DifficultyManager;
@@ -120,7 +121,7 @@ public final class SpawnDirector {
         if (EntitySpawnReason.isSpawner(reason) || reason == EntitySpawnReason.MOB_SUMMONED) {
             difficulty = Math.max(difficulty, WarbandConfig.spawnerDifficultyFloor);
         }
-        if (IllagerInvasionCompat.isIllagerLike(mob)) {
+        if (IllagerKinds.isIllagerLike(mob)) {
             // Naturally-spawned stronghold illagers (e.g. outpost pillagers) are
             // raised to the garrison floor here; mansion residents are caught on
             // entity load by StrongholdGarrison instead.
@@ -135,7 +136,7 @@ public final class SpawnDirector {
             return;
         }
 
-        boolean spawnFormation = (!IllagerInvasionCompat.isIllagerLike(mob) && reason == EntitySpawnReason.NATURAL)
+        boolean spawnFormation = (!IllagerKinds.isIllagerLike(mob) && reason == EntitySpawnReason.NATURAL)
                 || reason == EntitySpawnReason.PATROL
                 || reason == EntitySpawnReason.EVENT;
         if (!SquadCoordinator.assignNaturalSpawn(mob, difficulty, spawnFormation)) {
@@ -280,7 +281,7 @@ public final class SpawnDirector {
 
     private static void stampIllagerIdentityOnly(Mob mob, double difficulty) {
         if (isDyingOrGone(mob)) return;
-        if (!IllagerInvasionCompat.isIllagerLike(mob)) return;
+        if (!IllagerKinds.isIllagerLike(mob)) return;
         IllagerFactionSystem.assignIfNeeded(mob);
         FactionBanner.equipIfNeeded(mob);
         IllagerIdentity.assignIfNeeded(mob, Role.NONE, difficulty);

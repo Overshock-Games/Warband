@@ -6,6 +6,8 @@ import com.warband.entity.WarbandAttachments;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
+import com.warband.text.WarbandText;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -66,8 +68,9 @@ public final class RaidEvolutionHandler {
             if (!trophy) return;
             IllagerFaction faction = IllagerFactionSystem.factionOrDefault(raider);
             ItemStack banner = new ItemStack(bannerItemFor(faction));
-            banner.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
-                    Component.literal(faction.displayName() + " Trophy Banner"));
+            banner.set(DataComponents.CUSTOM_NAME,
+                    Component.translatableWithFallback("warband.item.trophy_banner", "%s Trophy Banner",
+                            faction.displayName()));
             net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(
                     level, raider.getX(), raider.getY() + 0.5, raider.getZ(), banner);
             drop.setDefaultPickUpDelay();
@@ -177,9 +180,10 @@ public final class RaidEvolutionHandler {
             if (firstSpawn == null) firstSpawn = rivalRaider;
         }
         if (firstSpawn != null) {
-            firstSpawn.setCustomName(Component.literal("Rival Skirmisher of the " + rival.displayName()));
-            broadcastNear(level, raid, Component.literal(
-                    "Rivals from the " + rival.displayName() + " move to intercept the raid."));
+            firstSpawn.setCustomName(WarbandText.titleOfFaction("warband.title.rival_skirmisher",
+                    "Rival Skirmisher", rival));
+            broadcastNear(level, raid, Component.translatableWithFallback("warband.rival.intercept_raid",
+                    "Rivals from the %s move to intercept the raid.", rival.displayName()));
         }
     }
 
