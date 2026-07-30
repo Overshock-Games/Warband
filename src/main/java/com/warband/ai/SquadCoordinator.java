@@ -5,6 +5,9 @@ import com.warband.ai.goal.BlazeHoverGoal;
 import com.warband.ai.goal.CallBackupGoal;
 import com.warband.ai.goal.CeilingCrawlGoal;
 import com.warband.ai.goal.CreeperStalkGoal;
+import com.warband.ai.goal.CreeperBreachGoal;
+import com.warband.ai.goal.ClimbToTargetGoal;
+import com.warband.ai.goal.DreadAvoidGoal;
 import com.warband.ai.goal.EndermanDisruptGoal;
 import com.warband.ai.goal.ExtendedMobTacticGoal;
 import com.warband.ai.goal.FlankGoal;
@@ -17,6 +20,7 @@ import com.warband.ai.goal.InvestigateLastKnownGoal;
 import com.warband.ai.goal.KiteGoal;
 import com.warband.ai.goal.PhantomHarassGoal;
 import com.warband.ai.goal.SeekShelterGoal;
+import com.warband.ai.goal.SiegeMineGoal;
 import com.warband.ai.goal.SkeletonPerchGoal;
 import com.warband.ai.goal.PiglinSocialGoal;
 import com.warband.ai.goal.PressureUnreachableGoal;
@@ -451,6 +455,16 @@ public final class SquadCoordinator {
         if (hasEnabledTactic(data, Tactic.CREEPER_STALK)) {
             accessor.warband$goalSelector().addGoal(4, new CreeperStalkGoal(mob, squad));
         }
+        // Breaching sits above the stalk: a creeper that cannot reach you should stop
+        // circling for a better angle and start removing the wall.
+        if (hasEnabledTactic(data, Tactic.CREEPER_BREACH)) {
+            accessor.warband$goalSelector().addGoal(3, new CreeperBreachGoal(mob, squad));
+        }
+        // Priority 6: below melee and the positioning tactics, so digging is the last
+        // resort it is meant to be rather than a shortcut past a reachable player.
+        if (hasEnabledTactic(data, Tactic.SIEGE_MINE)) {
+            accessor.warband$goalSelector().addGoal(6, new SiegeMineGoal(mob, squad));
+        }
         if (hasEnabledTactic(data, Tactic.ZOMBIE_HORDE)) {
             // Priority 3 so the encircle preempts vanilla melee approach until
             // the mob is actually in striking range (canUse gates distance >= 3).
@@ -499,6 +513,13 @@ public final class SquadCoordinator {
         if (mob instanceof Zombie || mob instanceof AbstractSkeleton) {
             accessor.warband$goalSelector().addGoal(1, new SeekShelterGoal(mob));
         }
+        // Universal on every stamped mob: get away from imminent detonations and
+        // wardens. Priority 1 so it interrupts Warband's own positioning tactics —
+        // no tactic is worth standing in a blast for.
+        accessor.warband$goalSelector().addGoal(1, new DreadAvoidGoal(mob));
+        // Universal: use a ladder you are already standing on. No goal flags, so it
+        // layers under the attack goal's pathing rather than fighting it.
+        accessor.warband$goalSelector().addGoal(2, new ClimbToTargetGoal(mob));
         // Passive horde-formation: out-of-combat zombies drift toward each
         // other so wanderers naturally cluster instead of starving solo.
         // Low priority so it never overrides combat/shelter behaviors.

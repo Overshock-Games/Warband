@@ -125,6 +125,42 @@ public final class WarbandConfig {
     public static boolean naturalJockeysEnabled = true;
     /** Difficulty required before a mob is "smart enough" to form a jockey on its own. */
     public static double naturalJockeyMinDifficulty = 0.35;
+    // ── Siege & anti-cheese ─────────────────────────────────────────────────
+    /** Smart diggers mine through blocks to reach a target they cannot path to. */
+    public static boolean siegeMiningEnabled = true;
+    /**
+     * If true, mined blocks stay gone. Off by default: Warband is a server-side
+     * drop-in for existing worlds, so the point of a breach is to force the fight,
+     * not to permanently eat someone's base.
+     */
+    public static boolean siegeMiningPermanent = false;
+    /** Seconds before a non-permanent breach seals itself. */
+    public static int siegeMiningRestoreSeconds = 90;
+    /** Mobs may only breach a block listed in this block tag. */
+    public static String siegeMiningBlockTag = "warband:siege_breakable";
+    /** Mobs climb ladders and vines to reach a target. */
+    public static boolean climbableBlocksEnabled = true;
+    /** Mobs scatter from swelling creepers, lit TNT, and wardens. */
+    public static boolean explosionAvoidanceEnabled = true;
+    /** Trapped mobs break the boat or minecart being used to park them. */
+    public static boolean vehicleEscapeEnabled = true;
+    /** Smart humanoids open (rather than only break) wooden doors and gates. */
+    public static boolean doorOpeningEnabled = true;
+    /** Creepers that cannot reach a target detonate against the wall in the way. */
+    public static boolean creeperBreachEnabled = true;
+    /** Difficulty-scaled shot cadence and accuracy for bow/crossbow users. */
+    public static boolean rangedTuningEnabled = true;
+    /** Maximum share of vanilla shot inaccuracy removed at difficulty 1.0. */
+    public static double rangedAccuracyBonusMax = 0.50;
+    /** Maximum share of vanilla shot interval removed at difficulty 1.0. */
+    public static double rangedCadenceBonusMax = 0.35;
+    /** Ghasts fire short fireball volleys instead of single shots. */
+    public static boolean ghastVolleyEnabled = true;
+    /** Blazes vary fireball timing and spread instead of a fixed pattern. */
+    public static boolean blazeFireballVariationEnabled = true;
+    /** Silverfish call nearby silverfish when hurt. */
+    public static boolean silverfishReinforcementsEnabled = true;
+
     /** Active raiders pillage every animal in range (leashed, named, tamed, baby — the lot) once no village defenders are left. */
     public static boolean raidPredationEnabled = true;
     /** High-ominous raids summon a faction bounty hunter during the final wave to finish the player personally. */
@@ -277,6 +313,21 @@ public final class WarbandConfig {
         spawnerDifficultyFloor = parseDouble(props, "spawnerDifficultyFloor", spawnerDifficultyFloor, 0.0, 1.0, logger);
         naturalJockeysEnabled = parseBoolean(props, "naturalJockeysEnabled", naturalJockeysEnabled, logger);
         naturalJockeyMinDifficulty = parseDouble(props, "naturalJockeyMinDifficulty", naturalJockeyMinDifficulty, 0.0, 1.0, logger);
+        siegeMiningEnabled = parseBoolean(props, "siegeMiningEnabled", siegeMiningEnabled, logger);
+        siegeMiningPermanent = parseBoolean(props, "siegeMiningPermanent", siegeMiningPermanent, logger);
+        siegeMiningRestoreSeconds = parseInt(props, "siegeMiningRestoreSeconds", siegeMiningRestoreSeconds, 1, 100_000, logger);
+        siegeMiningBlockTag = props.getProperty("siegeMiningBlockTag", siegeMiningBlockTag).trim();
+        climbableBlocksEnabled = parseBoolean(props, "climbableBlocksEnabled", climbableBlocksEnabled, logger);
+        explosionAvoidanceEnabled = parseBoolean(props, "explosionAvoidanceEnabled", explosionAvoidanceEnabled, logger);
+        vehicleEscapeEnabled = parseBoolean(props, "vehicleEscapeEnabled", vehicleEscapeEnabled, logger);
+        doorOpeningEnabled = parseBoolean(props, "doorOpeningEnabled", doorOpeningEnabled, logger);
+        creeperBreachEnabled = parseBoolean(props, "creeperBreachEnabled", creeperBreachEnabled, logger);
+        rangedTuningEnabled = parseBoolean(props, "rangedTuningEnabled", rangedTuningEnabled, logger);
+        rangedAccuracyBonusMax = parseDouble(props, "rangedAccuracyBonusMax", rangedAccuracyBonusMax, 0.0, 1.0, logger);
+        rangedCadenceBonusMax = parseDouble(props, "rangedCadenceBonusMax", rangedCadenceBonusMax, 0.0, 0.9, logger);
+        ghastVolleyEnabled = parseBoolean(props, "ghastVolleyEnabled", ghastVolleyEnabled, logger);
+        blazeFireballVariationEnabled = parseBoolean(props, "blazeFireballVariationEnabled", blazeFireballVariationEnabled, logger);
+        silverfishReinforcementsEnabled = parseBoolean(props, "silverfishReinforcementsEnabled", silverfishReinforcementsEnabled, logger);
         raidPredationEnabled = parseBoolean(props, "raidPredationEnabled", raidPredationEnabled, logger);
         raidFinaleBountyEnabled = parseBoolean(props, "raidFinaleBountyEnabled", raidFinaleBountyEnabled, logger);
         raidRivalInterceptEnabled = parseBoolean(props, "raidRivalInterceptEnabled", raidRivalInterceptEnabled, logger);
@@ -443,6 +494,38 @@ public final class WarbandConfig {
                 naturalJockeysEnabled=%s
                 # Difficulty required (0.0-1.0) before a mob is smart enough to form a jockey.
                 naturalJockeyMinDifficulty=%s
+                # ── Siege & anti-cheese ──────────────────────────────────────────
+                # If true, smart diggers mine through blocks to reach a target they cannot path to.
+                siegeMiningEnabled=%s
+                # If true, mined blocks stay gone. Off by default: a breach exists to force the
+                # fight, not to permanently eat a base you added this mod to.
+                siegeMiningPermanent=%s
+                # Seconds before a non-permanent breach seals itself back up.
+                siegeMiningRestoreSeconds=%d
+                # Block tag listing what a siege is allowed to break through.
+                siegeMiningBlockTag=%s
+                # If true, mobs climb ladders and vines to reach a target.
+                climbableBlocksEnabled=%s
+                # If true, mobs scatter from swelling creepers, lit TNT, and wardens.
+                explosionAvoidanceEnabled=%s
+                # If true, a mob parked in a boat or minecart breaks out of it.
+                vehicleEscapeEnabled=%s
+                # If true, smart humanoids open wooden doors and fence gates.
+                doorOpeningEnabled=%s
+                # If true, a creeper that cannot reach its target detonates on the wall in the way.
+                creeperBreachEnabled=%s
+                # If true, bow/crossbow users gain difficulty-scaled cadence and accuracy.
+                rangedTuningEnabled=%s
+                # Maximum share of vanilla inaccuracy / shot interval removed at difficulty 1.0.
+                rangedAccuracyBonusMax=%s
+                rangedCadenceBonusMax=%s
+                # If true, ghasts fire short volleys instead of single fireballs.
+                ghastVolleyEnabled=%s
+                # If true, blazes vary fireball timing and spread.
+                blazeFireballVariationEnabled=%s
+                # If true, hurt silverfish call nearby silverfish.
+                silverfishReinforcementsEnabled=%s
+
                 # If true, active raiders pillage every animal in range (including leashed/named/tamed/babies) when no villager or iron golem is left to fight.
                 raidPredationEnabled=%s
                 # If true, the final wave of a high-ominous raid summons a faction bounty hunter to finish the player personally.
@@ -558,6 +641,21 @@ public final class WarbandConfig {
                     spawnerDifficultyFloor,
                     naturalJockeysEnabled,
                     naturalJockeyMinDifficulty,
+                    siegeMiningEnabled,
+                    siegeMiningPermanent,
+                    siegeMiningRestoreSeconds,
+                    siegeMiningBlockTag,
+                    climbableBlocksEnabled,
+                    explosionAvoidanceEnabled,
+                    vehicleEscapeEnabled,
+                    doorOpeningEnabled,
+                    creeperBreachEnabled,
+                    rangedTuningEnabled,
+                    rangedAccuracyBonusMax,
+                    rangedCadenceBonusMax,
+                    ghastVolleyEnabled,
+                    blazeFireballVariationEnabled,
+                    silverfishReinforcementsEnabled,
                     raidPredationEnabled,
                     raidFinaleBountyEnabled,
                     raidRivalInterceptEnabled,

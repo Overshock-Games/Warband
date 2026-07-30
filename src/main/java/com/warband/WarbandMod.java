@@ -47,6 +47,7 @@ public final class WarbandMod implements ModInitializer {
         RegionalDifficulty.register();
         WarbandCommand.register();
         TemporaryTacticBlocks.register();
+        com.warband.ai.VehicleEscape.register();
         EncounterDirector.register();
         AntiFarmDirector.register();
         BossDirector.register();

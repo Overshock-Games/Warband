@@ -59,7 +59,9 @@ public enum Tactic {
     CEILING_CRAWL(1 << 24),
     RANGED_REPOSITION(1 << 25),
     BOGGED_BACKDASH(1 << 26),
-    STRAY_JUMP_SHOT(1 << 27);
+    STRAY_JUMP_SHOT(1 << 27),
+    SIEGE_MINE(1 << 28),
+    CREEPER_BREACH(1 << 29);
 
     private final int bit;
 
@@ -111,6 +113,22 @@ public enum Tactic {
         }
         if (subjects.contains(Subject.CREEPER) && difficulty >= 0.55) {
             mask |= PRESSURE_UNREACHABLE.bit | CREEPER_STALK.bit;
+        }
+        if (subjects.contains(Subject.CREEPER) && difficulty >= 0.60) {
+            mask |= CREEPER_BREACH.bit;
+        }
+        // Siege digging is the answer to a target that simply cannot be pathed to.
+        // Zombies lead, illagers follow at a higher band (they are meant to feel
+        // organised rather than mindless), ravagers earliest — they already read as
+        // siege engines.
+        if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.55) {
+            mask |= SIEGE_MINE.bit;
+        }
+        if (subjects.contains(Subject.ILLAGER_LIKE) && difficulty >= 0.60) {
+            mask |= SIEGE_MINE.bit;
+        }
+        if (subjects.contains(Subject.RAVAGER) && difficulty >= 0.50) {
+            mask |= SIEGE_MINE.bit;
         }
         if (difficulty >= 0.75) {
             mask |= PRESSURE_UNREACHABLE.bit;
