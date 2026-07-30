@@ -4,7 +4,6 @@ import com.warband.ai.Squad;
 import com.warband.ai.TacticalBarks;
 import com.warband.ai.VisibilityRules;
 import com.warband.WarbandDebug;
-import com.warband.WarbandMod;
 import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import com.warband.entity.Tactic;

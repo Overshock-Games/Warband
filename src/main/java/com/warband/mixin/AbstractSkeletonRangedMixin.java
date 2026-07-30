@@ -5,6 +5,7 @@ import com.warband.entity.MobData;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -65,6 +66,7 @@ public abstract class AbstractSkeletonRangedMixin {
         return (float) (inaccuracy * (1.0 - Math.min(1.0, reduction)));
     }
 
+    @Unique
     private int warband$scaleInterval(int interval) {
         if (!WarbandConfig.rangedTuningEnabled) return interval;
         double difficulty = warband$difficulty();
@@ -75,6 +77,7 @@ public abstract class AbstractSkeletonRangedMixin {
     }
 
     /** 0.0 for unstamped skeletons, so vanilla spawns keep vanilla archery exactly. */
+    @Unique
     private double warband$difficulty() {
         Mob self = (Mob) (Object) this;
         if (!MobData.isStamped(self)) return 0.0;
