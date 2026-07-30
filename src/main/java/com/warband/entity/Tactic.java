@@ -49,7 +49,6 @@ public enum Tactic {
     ILLAGER_COMMAND(1 << 14),
     PHANTOM_HARASS(1 << 15),
     LEAP_UNREACHABLE(1 << 16),
-    MOB_STACK_CLIMB(1 << 17),
     GUARDIAN_SURGE(1 << 18),
     SHULKER_LOCKDOWN(1 << 19),
     GHAST_REPOSITION(1 << 20),
@@ -105,9 +104,6 @@ public enum Tactic {
         if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.70) {
             mask |= WATER_COMMIT.bit;
         }
-        if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.65) {
-            mask |= MOB_STACK_CLIMB.bit;
-        }
         if (subjects.contains(Subject.ZOMBIE_FAMILY) && difficulty >= 0.80) {
             mask |= LEAP_UNREACHABLE.bit;
         }
@@ -150,11 +146,11 @@ public enum Tactic {
         }
         if (subjects.contains(Subject.HOGLIN_FAMILY) && difficulty >= 0.45) {
             mask |= HOGLIN_STAMPEDE.bit;
-            if (difficulty >= 0.65) mask |= LEAP_UNREACHABLE.bit | MOB_STACK_CLIMB.bit;
+            if (difficulty >= 0.65) mask |= LEAP_UNREACHABLE.bit;
         }
         if (subjects.contains(Subject.ILLAGER_LIKE) && difficulty >= 0.45) {
             mask |= ILLAGER_COMMAND.bit | PRESSURE_UNREACHABLE.bit;
-            if (difficulty >= 0.70) mask |= LEAP_UNREACHABLE.bit | MOB_STACK_CLIMB.bit;
+            if (difficulty >= 0.70) mask |= LEAP_UNREACHABLE.bit;
         }
         if (subjects.contains(Subject.PHANTOM) && difficulty >= 0.45) {
             mask |= PHANTOM_HARASS.bit | PRESSURE_UNREACHABLE.bit;

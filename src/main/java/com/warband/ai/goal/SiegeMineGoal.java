@@ -65,6 +65,7 @@ public final class SiegeMineGoal extends SquadGoal {
     private static final int MAX_BLOCKS_PER_BREACH = 4;
 
     private BlockPos digTarget;
+    private @Nullable LivingEntity siegeTarget;
     private int digTicks;
     private int digTicksNeeded;
     private int blocksBroken;
@@ -85,11 +86,13 @@ public final class SiegeMineGoal extends SquadGoal {
         if (blocksBroken >= MAX_BLOCKS_PER_BREACH) return false;
         if (!decisionReady(DECISION_INTERVAL)) return false;
 
-        BlockPos goal = targetPosition();
+        LivingEntity target = visibleTarget();
+        BlockPos goal = target != null ? target.blockPosition() : rememberedTargetPos();
         if (goal == null) return false;
         if (mob.distanceToSqr(Vec3.atCenterOf(goal)) > MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE) return false;
         // Only dig when walking there genuinely does not work.
-        if (canPathTo(goal)) return false;
+        if (canReach(target, goal)) return false;
+        siegeTarget = target;
 
         digTarget = chooseBlock(level, goal);
         if (digTarget == null) return false;
@@ -104,6 +107,13 @@ public final class SiegeMineGoal extends SquadGoal {
         if (frightened()) return false;
         if (!(mob.level() instanceof ServerLevel level)) return false;
         if (!isBreachable(level, digTarget)) return false;
+        // Stop mid-dig the moment walking there starts working again — otherwise the
+        // mob keeps holding the MOVE flag and stands frozen at a wall it no longer
+        // needs to remove, which reads to a player as a mob that stopped caring.
+        if (siegeTarget != null && siegeTarget.isAlive()
+                && canReach(siegeTarget, siegeTarget.blockPosition())) {
+            return false;
+        }
         // Stay in reach of what we are digging; being knocked away cancels it.
         return mob.distanceToSqr(Vec3.atCenterOf(digTarget)) <= 9.0;
     }
@@ -157,6 +167,7 @@ public final class SiegeMineGoal extends SquadGoal {
             level.destroyBlockProgress(mob.getId(), digTarget, -1);
         }
         digTarget = null;
+        siegeTarget = null;
         lastProgressStage = -1;
         blocksBroken = 0;
     }
@@ -167,14 +178,21 @@ public final class SiegeMineGoal extends SquadGoal {
     }
 
     /** Where the squad is trying to get to: a seen target, else the shared last-known position. */
-    private @Nullable BlockPos targetPosition() {
-        LivingEntity target = visibleTarget();
-        if (target != null) return target.blockPosition();
-        return squad.lastKnownPos();
-    }
-
-    private boolean canPathTo(BlockPos goal) {
-        Path path = mob.getNavigation().createPath(goal, 0);
+    /**
+     * Whether the mob can simply walk there.
+     *
+     * <p>Prefers pathing to the <b>entity</b> when there is one. Pathing to a player's
+     * own {@code BlockPos} routinely reports unreachable even when the player is
+     * plainly walkable-to, because the destination node is the block the player is
+     * standing in — vanilla's {@code MeleeAttackGoal} paths to the entity for exactly
+     * this reason. Using the block position here made sieges fire constantly against
+     * reachable players: 26 dig attempts to 3 completed blocks in one test session,
+     * with mobs freezing at walls instead of attacking.
+     */
+    private boolean canReach(@Nullable LivingEntity target, BlockPos goal) {
+        Path path = target != null
+                ? mob.getNavigation().createPath(target, 0)
+                : mob.getNavigation().createPath(goal, 0);
         return path != null && path.canReach();
     }
 

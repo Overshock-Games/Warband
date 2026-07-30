@@ -444,8 +444,7 @@ public final class SquadCoordinator {
             accessor.warband$goalSelector().addGoal(4, new WaterCommitGoal(mob, squad));
         }
         if (hasEnabledTactic(data, Tactic.PRESSURE_UNREACHABLE)
-                || hasEnabledTactic(data, Tactic.LEAP_UNREACHABLE)
-                || hasEnabledTactic(data, Tactic.MOB_STACK_CLIMB)) {
+                || hasEnabledTactic(data, Tactic.LEAP_UNREACHABLE)) {
             accessor.warband$goalSelector().addGoal(5, new PressureUnreachableGoal(mob, squad));
         }
         if (hasEnabledTactic(data, Tactic.RANGED_REPOSITION)) {

@@ -39,11 +39,14 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
     private static final double WARDEN_SCAN = 12.0;
     private static final double FLEE_DISTANCE = 12.0;
     private static final int RECHECK_TICKS = 10;
+    /** Cooldown after a scatter, so one lingering threat cannot pin a mob permanently. */
+    private static final int REARM_TICKS = 20 * 5;
 
     private final Mob mob;
     private Vec3 fleeFrom;
     private String threatKind = "?";
     private int recheckCounter;
+    private int rearmAtTick;
 
     public DreadAvoidGoal(Mob mob) {
         this.mob = mob;
@@ -56,6 +59,7 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
         if (MobData.get(mob).difficulty() < MIN_DIFFICULTY) return false;
         // A creeper is not afraid of its own trade, and a warden fears nothing.
         if (mob instanceof Creeper || mob instanceof Warden) return false;
+        if (mob.tickCount < rearmAtTick) return false;
         if (--recheckCounter > 0) return false;
         recheckCounter = RECHECK_TICKS;
 
@@ -87,6 +91,7 @@ public final class DreadAvoidGoal extends Goal implements WarbandGoal {
     @Override
     public void stop() {
         fleeFrom = null;
+        rearmAtTick = mob.tickCount + REARM_TICKS;
     }
 
     private Entity nearestThreat() {

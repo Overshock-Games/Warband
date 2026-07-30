@@ -47,6 +47,9 @@ public final class CreeperBreachGoal extends SquadGoal {
     private static final int DECISION_INTERVAL = 40;
 
     private LivingEntity breachTarget;
+    private BlockPos breachPoint;
+    /** True once we lit the fuse, so only we stand it down again. */
+    private boolean weLitIt;
 
     public CreeperBreachGoal(Mob mob, Squad squad) {
         super(mob, squad, 1.0);
@@ -64,12 +67,17 @@ public final class CreeperBreachGoal extends SquadGoal {
         if (MobData.get(mob).difficulty() < MIN_DIFFICULTY) return false;
         if (!decisionReady(DECISION_INTERVAL)) return false;
 
+        // visibleTarget() also refreshes this mob's own sighting memory, so call it
+        // first even when we end up acting on the remembered position instead.
         LivingEntity target = visibleTarget();
-        if (target == null) return false;
-        double distance = mob.distanceToSqr(target);
-        if (distance > MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE) return false;
+        breachPoint = target != null ? target.blockPosition() : rememberedTargetPos();
+        if (breachPoint == null) return false;
+
+        if (mob.distanceToSqr(Vec3.atCenterOf(breachPoint)) > MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE) {
+            return false;
+        }
         // Vanilla's SwellGoal already covers a reachable target at close range.
-        if (canPathTo(target)) return false;
+        if (canPathTo(breachPoint)) return false;
 
         breachTarget = target;
         return true;
@@ -77,10 +85,10 @@ public final class CreeperBreachGoal extends SquadGoal {
 
     @Override
     public boolean canContinueToUse() {
-        if (breachTarget == null || !breachTarget.isAlive()) return false;
+        if (breachPoint == null) return false;
         if (frightened()) return false;
         if (!(mob instanceof Creeper)) return false;
-        return mob.distanceToSqr(breachTarget) <= MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE;
+        return mob.distanceToSqr(Vec3.atCenterOf(breachPoint)) <= MAX_TARGET_DISTANCE * MAX_TARGET_DISTANCE;
     }
 
     @Override
@@ -90,12 +98,12 @@ public final class CreeperBreachGoal extends SquadGoal {
 
     @Override
     public void tick() {
-        if (breachTarget == null || !(mob instanceof Creeper creeper)) return;
+        if (breachPoint == null || !(mob instanceof Creeper creeper)) return;
 
-        mob.getLookControl().setLookAt(breachTarget, 30.0F, 30.0F);
+        mob.getLookControl().setLookAt(Vec3.atCenterOf(breachPoint));
         // Close on the wall between us and them, aiming at the obstruction rather
         // than the unreachable target itself.
-        BlockPos wall = wallToward(breachTarget);
+        BlockPos wall = wallToward(breachPoint);
         if (wall != null && mob.distanceToSqr(Vec3.atCenterOf(wall)) > BREACH_RANGE * BREACH_RANGE) {
             moveTo(wall);
             return;
@@ -104,6 +112,7 @@ public final class CreeperBreachGoal extends SquadGoal {
         mob.getNavigation().stop();
         if (creeper.getSwellDir() <= 0) {
             creeper.setSwellDir(1);
+            weLitIt = true;
             announceTactic(Tactic.CREEPER_BREACH);
         }
     }
@@ -111,22 +120,27 @@ public final class CreeperBreachGoal extends SquadGoal {
     @Override
     public void stop() {
         breachTarget = null;
-        // Only stand the fuse down if we are the reason it is lit; vanilla SwellGoal
-        // may legitimately own it by now.
-        if (mob instanceof Creeper creeper && creeper.getSwellDir() > 0 && visibleTarget() == null) {
+        breachPoint = null;
+        // Always stand down a fuse we lit. The previous condition also required the
+        // target to be out of sight, which meant a breach abandoned while the player
+        // was still visible left the creeper wandering permanently primed — it would
+        // detonate on nothing, and every nearby mob would flee it on sight via
+        // DreadAvoidGoal. Vanilla's SwellGoal re-lights it if it genuinely should be.
+        if (weLitIt && mob instanceof Creeper creeper && creeper.getSwellDir() > 0) {
             creeper.setSwellDir(-1);
         }
+        weLitIt = false;
     }
 
-    private boolean canPathTo(LivingEntity target) {
-        Path path = mob.getNavigation().createPath(target, 0);
+    private boolean canPathTo(BlockPos goal) {
+        Path path = mob.getNavigation().createPath(goal, 0);
         return path != null && path.canReach();
     }
 
-    /** First solid block on the straight line toward the target. */
-    private BlockPos wallToward(LivingEntity target) {
+    /** First solid block on the straight line toward the target position. */
+    private BlockPos wallToward(BlockPos goal) {
         Vec3 from = mob.getEyePosition();
-        Vec3 to = target.getEyePosition();
+        Vec3 to = Vec3.atCenterOf(goal).add(0.0, 1.0, 0.0);
         Vec3 step = to.subtract(from);
         double length = step.length();
         if (length < 0.5) return null;

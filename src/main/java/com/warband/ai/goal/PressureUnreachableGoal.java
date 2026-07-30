@@ -54,11 +54,6 @@ public final class PressureUnreachableGoal extends SquadGoal {
             action = Action.LEAP;
             return true;
         }
-        if (target != null && data.hasTactic(Tactic.MOB_STACK_CLIMB) && canStackClimb(target)) {
-            action = Action.STACK_CLIMB;
-            return true;
-        }
-
         Vec3 offset = new Vec3(mob.getRandom().nextInt(9) - 4, 0, mob.getRandom().nextInt(9) - 4);
         searchPos = BlockPos.containing(pressurePoint.getCenter().add(offset));
         action = Action.SEARCH;
@@ -72,12 +67,6 @@ public final class PressureUnreachableGoal extends SquadGoal {
             doLeap(pressureTarget);
             announceTactic(Tactic.LEAP_UNREACHABLE);
             TacticalEffects.search((ServerLevel) mob.level(), mob.position());
-            return;
-        }
-        if (action == Action.STACK_CLIMB && pressureTarget != null && pressureTarget.isAlive()) {
-            doStackClimb(pressureTarget);
-            announceTactic(Tactic.MOB_STACK_CLIMB);
-            TacticalEffects.signal((ServerLevel) mob.level(), mob);
             return;
         }
         if (searchPos != null && moveTo(searchPos)) {
@@ -109,42 +98,11 @@ public final class PressureUnreachableGoal extends SquadGoal {
         mob.setDeltaMovement(mob.getDeltaMovement().add(direction.scale(0.7)).add(0.0, lift, 0.0));
     }
 
-    private boolean canStackClimb(LivingEntity target) {
-        if (target.getY() < mob.getY() + 1.5 || mob.distanceToSqr(target) > 10.0 * 10.0) return false;
-        return stackClimbAlly() != null;
-    }
 
-    private boolean doStackClimb(LivingEntity target) {
-        Mob ally = stackClimbAlly();
-        if (ally == null) return false;
-        Vec3 top = ally.position().add(0.0, ally.getBbHeight() + 0.05, 0.0);
-        if (mob.position().distanceToSqr(top) > 1.8 * 1.8) {
-            return mob.getNavigation().moveTo(top.x, top.y, top.z, 1.2);
-        }
 
-        Vec3 toTarget = target.position().subtract(mob.position());
-        Vec3 direction = new Vec3(toTarget.x, 0.0, toTarget.z);
-        if (direction.lengthSqr() > 0.001) {
-            direction = direction.normalize().scale(0.35);
-        }
-        mob.setDeltaMovement(mob.getDeltaMovement().add(direction).add(0.0, 0.55, 0.0));
-        return true;
-    }
-
-    private Mob stackClimbAlly() {
-        AABB box = AABB.ofSize(mob.position(), 7.0, 3.0, 7.0);
-        List<Mob> allies = ((ServerLevel) mob.level()).getEntitiesOfClass(Mob.class, box, ally ->
-                ally != mob
-                        && ally.isAlive()
-                        && MobData.get(ally).squadId() == MobData.get(mob).squadId()
-                        && ally.distanceToSqr(mob) < 4.0 * 4.0);
-        if (allies.isEmpty()) return null;
-        return allies.get(mob.getRandom().nextInt(allies.size()));
-    }
 
     private enum Action {
         LEAP,
-        STACK_CLIMB,
         SEARCH
     }
 }

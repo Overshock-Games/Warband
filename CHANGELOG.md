@@ -31,6 +31,10 @@ Last release for 26.1.2. Later updates target 26.2.
 - Fixed spider webs being inescapable once they landed.
 - Fixed squad members spawning inside terrain and on top of each other, which made hordes pile into one spot instead of reaching the player.
 - Fixed zombie encirclement giving up when its preferred approach was blocked, putting the whole squad back onto one path.
+- Fixed mobs freezing at walls instead of attacking. Siege mining tested whether it could reach you by pathing to the block you were standing in, which frequently reports "unreachable" even when you are plainly walkable-to, so mobs started digging against reachable players and stopped fighting while they did it.
+- Fixed cue sounds using one fixed noise for every mob, so a creeper announcing you sounded like an illager. Every mob now speaks in its own voice, with pitch and a layered accent carrying the meaning.
+- Fixed creepers staying primed after abandoning a breach, which made them detonate on nothing and made nearby mobs flee them on sight.
+- Removed zombie stacking. It could never fire — a minimum-distance check ruled it out in exactly the situation it was built for, and it tried to pathfind onto another mob's head, which the game cannot do. Leaping and siege mining cover the same ground and both work.
 
 ## 1.3.2
 

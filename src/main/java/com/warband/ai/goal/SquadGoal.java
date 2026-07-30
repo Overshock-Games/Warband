@@ -19,10 +19,15 @@ import java.util.EnumSet;
 
 abstract class SquadGoal extends Goal implements WarbandGoal {
 
+    /** How long a mob's own sighting stays actionable. Matches the squad blackboard. */
+    private static final int MEMORY_TICKS = 20 * 12;
+
     protected final Mob mob;
     protected final Squad squad;
     protected final double speed;
     private int nextDecisionTick;
+    private @Nullable BlockPos lastSeenPos;
+    private int lastSeenTick;
 
     SquadGoal(Mob mob, Squad squad, double speed) {
         this.mob = mob;
@@ -63,10 +68,33 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
     protected @Nullable LivingEntity visibleTarget() {
         LivingEntity target = mob.getTarget();
         if (VisibilityRules.canUseTacticalSight(mob, target)) {
-            return target;
+            return remember(target);
         }
         target = squad.target();
-        return VisibilityRules.canUseTacticalSight(mob, target) ? target : null;
+        return VisibilityRules.canUseTacticalSight(mob, target) ? remember(target) : null;
+    }
+
+    private LivingEntity remember(LivingEntity target) {
+        lastSeenPos = target.blockPosition();
+        lastSeenTick = mob.tickCount;
+        return target;
+    }
+
+    /**
+     * Where the target was last actually seen, whether or not this mob is in a squad.
+     *
+     * <p>{@link Squad#lastKnownPos()} only works for real squads. Mobs that do not form
+     * them — every creeper, and any zombie that spawned alone — are handed a throwaway
+     * {@code Squad} that is never registered or ticked, so its last-known position is
+     * permanently null. Any goal relying solely on the squad blackboard therefore went
+     * completely blind the moment a solo mob lost line of sight, which is precisely
+     * when "where did they go" matters. This is the per-mob fallback.
+     */
+    protected @Nullable BlockPos rememberedTargetPos() {
+        BlockPos shared = squad.lastKnownPos();
+        if (shared != null) return shared;
+        if (lastSeenPos == null) return null;
+        return mob.tickCount - lastSeenTick <= MEMORY_TICKS ? lastSeenPos : null;
     }
 
     protected boolean moveTo(BlockPos pos) {

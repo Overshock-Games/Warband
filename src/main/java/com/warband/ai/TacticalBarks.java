@@ -49,27 +49,37 @@ public final class TacticalBarks {
     private TacticalBarks() {
     }
 
-    /** What a bark communicates, and the sound that carries it. */
+    /**
+     * What a bark communicates.
+     *
+     * <p>The <b>voice</b> is always the mob's own sound (see {@link MobVoice}) so a
+     * creeper never groans like a zombie. Meaning is carried by <b>pitch</b> plus an
+     * optional layered <b>accent</b> — same speaker, different tone. Pitch alone was
+     * not enough to keep six families apart, and swapping the voice per family threw
+     * away the species identity players rely on.
+     */
     private enum Bark {
-        /** Committing toward you. */
-        ADVANCE(SoundEvents.ARMOR_EQUIP_CHAIN.value(), 0.75f),
-        /** Moving around you rather than at you. */
-        CIRCLE(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 1.25f),
-        /** Giving ground. */
-        WITHDRAW(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.7f),
-        /** Bringing others. */
-        RALLY(SoundEvents.RAID_HORN.value(), 1.35f),
-        /** About to close the distance violently. */
-        LUNGE(SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f),
-        /** Looking for you rather than at you. */
-        SEARCH(SoundEvents.FOX_SNIFF, 0.85f);
+        /** Committing toward you: low voice, heavy gear. */
+        ADVANCE(0.8f, SoundEvents.ARMOR_EQUIP_CHAIN.value(), 0.35f),
+        /** Moving around you rather than at you: raised voice, light gear. */
+        CIRCLE(1.3f, SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.3f),
+        /** Giving ground: falling voice, no accent. */
+        WITHDRAW(0.65f, null, 0.0f),
+        /** Bringing others. The horn is the universal reinforcement signifier — keep it. */
+        RALLY(1.15f, SoundEvents.RAID_HORN.value(), 0.45f),
+        /** About to close the distance violently: sharp voice plus a whoosh. */
+        LUNGE(1.5f, SoundEvents.PLAYER_ATTACK_SWEEP, 0.4f),
+        /** Looking for you rather than at you: quiet voice, sniffing. */
+        SEARCH(1.05f, SoundEvents.FOX_SNIFF, 0.3f);
 
-        private final SoundEvent sound;
         private final float pitch;
+        private final @Nullable SoundEvent accent;
+        private final float accentVolume;
 
-        Bark(SoundEvent sound, float pitch) {
-            this.sound = sound;
+        Bark(float pitch, @Nullable SoundEvent accent, float accentVolume) {
             this.pitch = pitch;
+            this.accent = accent;
+            this.accentVolume = accentVolume;
         }
     }
 
@@ -88,8 +98,7 @@ public final class TacticalBarks {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (!ready(mob)) return;
 
-        level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
-                bark.sound, SoundSource.HOSTILE, VOLUME, bark.pitch);
+        speak(level, mob, bark);
     }
 
     /**
@@ -106,8 +115,17 @@ public final class TacticalBarks {
         if (!(mob.level() instanceof ServerLevel level)) return;
         if (!ready(mob)) return;
 
+        speak(level, mob, Bark.RALLY);
+    }
+
+    /** The mob's own voice at the bark's pitch, with the family accent layered over it. */
+    private static void speak(ServerLevel level, Mob mob, Bark bark) {
         level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
-                Bark.RALLY.sound, SoundSource.HOSTILE, VOLUME, Bark.RALLY.pitch);
+                MobVoice.of(mob), SoundSource.HOSTILE, VOLUME, bark.pitch);
+        if (bark.accent != null) {
+            level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
+                    bark.accent, SoundSource.HOSTILE, bark.accentVolume, bark.pitch);
+        }
     }
 
     private static boolean ready(Mob mob) {
@@ -138,7 +156,7 @@ public final class TacticalBarks {
             case PIGLIN_SOCIAL, WITCH_SUPPORT -> Bark.RALLY;
 
             // About to cover ground fast.
-            case LEAP_UNREACHABLE, MOB_STACK_CLIMB, SLIME_SURGE, STRAY_JUMP_SHOT,
+            case LEAP_UNREACHABLE, SLIME_SURGE, STRAY_JUMP_SHOT,
                  ENDERMAN_DISRUPT -> Bark.LUNGE;
 
             // Hunting a position rather than a target.

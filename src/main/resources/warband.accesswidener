@@ -2,3 +2,7 @@ accessWidener v2 official
 
 # Add access wideners here as the AI / spawn systems need them.
 # Likely candidates: Mob goal selectors, Brain internals, NaturalSpawner hooks.
+
+# Each mob's own voice, so Warband's audio cues can be spoken in the mob's
+# characteristic sound instead of one shared noise for every species.
+accessible	method	net/minecraft/world/entity/Mob	getAmbientSound	()Lnet/minecraft/sounds/SoundEvent;

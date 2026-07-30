@@ -53,6 +53,15 @@ public final class PerceptionCues {
     private static final int PLAYER_COOLDOWN_TICKS = 30;
     /** Below this difficulty a mob is not attentive enough to react at all. */
     private static final double MIN_DIFFICULTY = 0.20;
+    /**
+     * Quiet time required before declaring an all-clear.
+     *
+     * <p>Hysteresis, not politeness. A mob bobbing in and out of line of sight behind a
+     * doorway flips ALERT/UNAWARE every couple of seconds, and without this the player
+     * gets an alarm-then-all-clear pair each time — observed in testing as
+     * ALERTED and LOST_TRACK two seconds apart, repeatedly.
+     */
+    private static final int ALL_CLEAR_DELAY_TICKS = 60;
 
     private static final WeakHashMap<Mob, Awareness> STATE = new WeakHashMap<>();
     /** Per-player: last cue tick, and whether an all-clear is still owed. */
@@ -74,6 +83,10 @@ public final class PerceptionCues {
         int lastCueTick;
         /** True once anything has gone ALERT, so exactly one all-clear is owed. */
         boolean alarmRaised;
+        /** Last tick anything was hunting, for the all-clear hysteresis. */
+        int lastAlertTick;
+        /** Who was hunting, so the all-clear can be spoken in that mob's own voice. */
+        java.lang.ref.WeakReference<Mob> lastAlertMob = new java.lang.ref.WeakReference<>(null);
     }
 
     public static void register() {
@@ -125,8 +138,12 @@ public final class PerceptionCues {
 
         // Escalation outranks first contact: if something just locked on, that is the
         // more urgent thing for the player to hear.
+        if (anyAlert) {
+            state.lastAlertTick = player.tickCount;
+        }
         if (alerted != null) {
             state.alarmRaised = true;
+            state.lastAlertMob = new java.lang.ref.WeakReference<>(alerted);
             if (ready(player, state)) {
                 cueAlert(level, alerted, player);
             }
@@ -136,10 +153,13 @@ public final class PerceptionCues {
             cueSuspicious(level, roused, player);
             return;
         }
-        // Nothing is hunting any more, and something was. One all-clear, once.
-        if (!anyAlert && state.alarmRaised) {
+        // Nothing is hunting any more, and something was. One all-clear, once — but
+        // only after the hunt has actually stayed quiet, or a mob flickering behind a
+        // doorway produces an alarm/all-clear pair every few seconds.
+        if (!anyAlert && state.alarmRaised
+                && player.tickCount - state.lastAlertTick >= ALL_CLEAR_DELAY_TICKS) {
             state.alarmRaised = false;
-            cueLostYou(level, player);
+            cueLostYou(level, player, state.lastAlertMob.get());
         }
     }
 
@@ -167,8 +187,11 @@ public final class PerceptionCues {
     /** "Something's there." Rising pitch reads as a question. */
     private static void cueSuspicious(ServerLevel level, Mob mob, ServerPlayer player) {
         mob.getLookControl().setLookAt(player, 30.0F, 30.0F);
+        // The mob's own voice, raised — a questioning version of its normal sound.
         level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
-                SoundEvents.FOX_SNIFF, SoundSource.HOSTILE, 0.7f, 1.4f);
+                MobVoice.of(mob), SoundSource.HOSTILE, 0.6f, 1.45f);
+        level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
+                SoundEvents.FOX_SNIFF, SoundSource.HOSTILE, 0.35f, 1.4f);
         level.sendParticles(ParticleTypes.SMOKE, mob.getX(), mob.getEyeY() + 0.6, mob.getZ(),
                 3, 0.08, 0.05, 0.08, 0.0);
         WarbandDebug.event("SUSPICIOUS", mob, "player=" + player.getName().getString());
@@ -176,8 +199,10 @@ public final class PerceptionCues {
 
     /** "Found you." Deliberately harsher than the suspicion cue. */
     private static void cueAlert(ServerLevel level, Mob mob, ServerPlayer player) {
+        // Its own voice, sharp and loud. Was a fixed ravager grunt for every species,
+        // which is why a creeper spotting you sounded like something else entirely.
         level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
-                SoundEvents.RAVAGER_AMBIENT, SoundSource.HOSTILE, 0.6f, 1.5f);
+                MobVoice.of(mob), SoundSource.HOSTILE, 0.85f, 1.6f);
         level.sendParticles(ParticleTypes.ANGRY_VILLAGER, mob.getX(), mob.getEyeY() + 0.6, mob.getZ(),
                 2, 0.1, 0.05, 0.1, 0.0);
         WarbandDebug.event("ALERTED", mob, "player=" + player.getName().getString());
@@ -188,9 +213,17 @@ public final class PerceptionCues {
      * definition the thing that lost them may be out of earshot — and because this is
      * information about the player's own situation, not about a location.
      */
-    private static void cueLostYou(ServerLevel level, ServerPlayer player) {
-        level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.FOX_SLEEP, SoundSource.HOSTILE, 0.55f, 0.8f);
+    private static void cueLostYou(ServerLevel level, ServerPlayer player, @Nullable Mob gaveUp) {
+        // Spoken by whatever gave up, in its own voice, dropped low — "it loses
+        // interest". Falls back to a neutral sound at the player if that mob is gone,
+        // because the all-clear still has to land even when nothing is left to say it.
+        if (gaveUp != null && gaveUp.isAlive()) {
+            level.playSound(null, gaveUp.getX(), gaveUp.getY(), gaveUp.getZ(),
+                    MobVoice.of(gaveUp), SoundSource.HOSTILE, 0.7f, 0.55f);
+        } else {
+            level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.HOSTILE, 0.4f, 0.6f);
+        }
         WarbandDebug.event("LOST_TRACK", player, "player=" + player.getName().getString());
     }
 
