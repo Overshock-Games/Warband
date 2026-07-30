@@ -264,6 +264,25 @@ then put an illager, piglin or drowned on the far side.
 - **[EYES]** Do they shut the door behind them? Does a squad filing through look
   deliberate, or do they jam up fighting over it?
 
+### C2c — Tactical barks **[EYES]**
+
+```
+/warband debug squad 0.9
+```
+
+Let them engage you, then move so they have to reposition.
+
+- **[EYES]** Can you tell *by ear alone* whether they are closing on you, circling,
+  pulling back, or calling for reinforcements? That is the whole point — six cues,
+  meant to be learnable.
+- **[EYES]** Is it too chatty with 6+ mobs? Throttle is one bark per mob per 3.5s.
+- **[EYES]** Do the cues sound like Minecraft, or like a different game leaked in?
+- Cross-check against the log: every bark corresponds to an `EVENT=` line for the
+  same mob, since both hang off the same call. A tactic firing in the log with no
+  audible cue is either intentionally silent (webs, siege digging, lit creepers) or a
+  gap worth reporting.
+- Set `tacticalBarksEnabled=false` and confirm silence returns.
+
 ### C3 — Explosion / warden avoidance **[LOG]**
 
 ```

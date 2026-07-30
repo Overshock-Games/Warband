@@ -40,7 +40,7 @@ behaviours — they are ways to make existing behaviour readable.
 
 | Source | Mechanic | Plugs into | Cost | Verdict |
 |---|---|---|---|---|
-| **F.E.A.R. / Halo** | Squad *barks*: enemies announce intent out loud ("flanking left") | `TacticalEffects.roleCue`, existing 30-tactic mask | Low | **Take first** |
+| **F.E.A.R. / Halo** | Squad *barks*: enemies announce intent out loud ("flanking left") | `TacticalEffects.roleCue`, existing 30-tactic mask | Low | **SHIPPED** — `TacticalBarks` |
 | **Thief / Splinter Cell** | Three-state awareness — unaware → suspicious → alert, each with a tell | `VisibilityRules`, `Squad.lastKnownPos` | Low | **Take** |
 | **Shadow of Mordor** | Nemesis *adaptation*: a survivor returns changed by how it nearly died | `IllagerGrudge` (already persists named survivors) | Low | **Take** |
 | **Shadow of Mordor** | Reputation → pre-emptive fear; grunts flee a player who slaughtered their army | `FactionReputation` heat, `Squad.morale` | Low | **Take** |
@@ -58,7 +58,7 @@ behaviours — they are ways to make existing behaviour readable.
 
 ---
 
-## 1. Tactical barks — F.E.A.R., Halo *(do this first)*
+## 1. Tactical barks — F.E.A.R., Halo *(shipped)*
 
 F.E.A.R.'s replicas are not much smarter than their contemporaries. They *sound*
 smarter, because they narrate: "he's flanking!", "reloading, cover me!". Halo's
@@ -147,7 +147,10 @@ and it hands the player a power fantasy the mod currently only ever takes away.
 
 ## Suggested order
 
-1. **Barks** — largest perceived gain, lowest cost, fixes a reported complaint.
+1. ~~**Barks**~~ — **shipped.** Six families (advance, circle, withdraw, rally, lunge,
+   search) hung off the existing tactic-announcement call, so cue coverage and debug
+   coverage cannot drift apart. The `Tactic` switch is exhaustive with no default, so
+   any future tactic must make an explicit bark-or-silent decision at compile time.
 2. **Nemesis adaptation** — biggest story payoff, and the state is already persisted.
 3. **Awareness states** — makes an existing invisible system playable.
 4. **Reputation fear** — nearly free once heat is already tracked.

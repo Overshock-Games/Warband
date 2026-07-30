@@ -62,7 +62,7 @@ public final class ZombieHordeGoal extends SquadGoal {
                     Math.cos(angle) * ENCIRCLE_RADIUS, 0.0, Math.sin(angle) * ENCIRCLE_RADIUS);
             if (moveTo(BlockPos.containing(dest.x, dest.y, dest.z))) {
                 if (squad.members().size() > 1) {
-                    logTactic(Tactic.ZOMBIE_HORDE);
+                    announceTactic(Tactic.ZOMBIE_HORDE);
                     TacticalEffects.search((ServerLevel) mob.level(), mob.position());
                 }
                 return;

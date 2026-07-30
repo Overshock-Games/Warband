@@ -76,7 +76,7 @@ public final class WitchSupportGoal extends SquadGoal {
         if (supportTarget == null || !supportTarget.isAlive()) return;
         resetCooldown(COOLDOWN_TICKS);
         throwSupportPotion(healSupport ? Potions.REGENERATION : Potions.STRENGTH);
-        logTactic(Tactic.WITCH_SUPPORT);
+        announceTactic(Tactic.WITCH_SUPPORT);
         TacticalEffects.signal((ServerLevel) mob.level(), mob);
     }
 

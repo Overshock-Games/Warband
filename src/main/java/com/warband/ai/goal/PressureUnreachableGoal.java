@@ -70,18 +70,18 @@ public final class PressureUnreachableGoal extends SquadGoal {
         resetCooldown(COOLDOWN_TICKS);
         if (action == Action.LEAP && pressureTarget != null && pressureTarget.isAlive()) {
             doLeap(pressureTarget);
-            logTactic(Tactic.LEAP_UNREACHABLE);
+            announceTactic(Tactic.LEAP_UNREACHABLE);
             TacticalEffects.search((ServerLevel) mob.level(), mob.position());
             return;
         }
         if (action == Action.STACK_CLIMB && pressureTarget != null && pressureTarget.isAlive()) {
             doStackClimb(pressureTarget);
-            logTactic(Tactic.MOB_STACK_CLIMB);
+            announceTactic(Tactic.MOB_STACK_CLIMB);
             TacticalEffects.signal((ServerLevel) mob.level(), mob);
             return;
         }
         if (searchPos != null && moveTo(searchPos)) {
-            logTactic(Tactic.PRESSURE_UNREACHABLE);
+            announceTactic(Tactic.PRESSURE_UNREACHABLE);
             TacticalEffects.search((ServerLevel) mob.level(), mob.position());
             if (squad.canCallBackup()) {
                 SquadCoordinator.callBackup(squad, mob.blockPosition());

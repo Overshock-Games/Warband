@@ -40,7 +40,7 @@ public final class BlazeHoverGoal extends SquadGoal {
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
         if (hover != null && moveTo(hover)) {
-            logTactic(Tactic.BLAZE_HOVER);
+            announceTactic(Tactic.BLAZE_HOVER);
             TacticalEffects.signal((ServerLevel) mob.level(), mob);
             // Fire while relocating, so taking the high ground costs the player
             // something instead of just being a repositioning animation.

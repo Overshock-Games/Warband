@@ -35,7 +35,7 @@ public final class PhantomHarassGoal extends SquadGoal {
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
         if (pass != null && moveTo(pass)) {
-            logTactic(Tactic.PHANTOM_HARASS);
+            announceTactic(Tactic.PHANTOM_HARASS);
             TacticalEffects.search((ServerLevel) mob.level(), mob.position());
         }
     }

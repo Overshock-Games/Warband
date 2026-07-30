@@ -49,7 +49,7 @@ public final class StickyPathGoal extends SquadGoal {
         resetCooldown(COOLDOWN_TICKS);
         if (webPos != null) {
             if (TemporaryTacticBlocks.place((ServerLevel) mob.level(), webPos, Blocks.COBWEB, WEB_LIFETIME_TICKS)) {
-                logTactic(Tactic.STICKY_PATH);
+                announceTactic(Tactic.STICKY_PATH);
             }
         }
     }

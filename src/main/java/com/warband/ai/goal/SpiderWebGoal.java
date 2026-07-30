@@ -128,7 +128,7 @@ public final class SpiderWebGoal extends SquadGoal {
         // move and something else may have filled the tile meanwhile.
         if (level.getBlockState(webPos).isAir() && !webbingNear(webPos)) {
             if (TemporaryTacticBlocks.place(level, webPos, Blocks.COBWEB, WEB_LIFETIME_TICKS)) {
-                logTactic(Tactic.SPIDER_WEB);
+                announceTactic(Tactic.SPIDER_WEB);
             }
         }
         webPos = null;

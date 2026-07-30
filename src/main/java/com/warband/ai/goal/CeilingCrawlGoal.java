@@ -116,7 +116,7 @@ public final class CeilingCrawlGoal extends SquadGoal {
         }
 
         if (!logged) {
-            logTactic(Tactic.CEILING_CRAWL);
+            announceTactic(Tactic.CEILING_CRAWL);
             logged = true;
         }
 

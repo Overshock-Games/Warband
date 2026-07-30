@@ -143,7 +143,7 @@ public final class SiegeMineGoal extends SquadGoal {
 
         if (TemporaryTacticBlocks.mine(level, digTarget, WarbandConfig.siegeMiningRestoreSeconds * 20)) {
             blocksBroken++;
-            logTactic(Tactic.SIEGE_MINE);
+            announceTactic(Tactic.SIEGE_MINE);
         }
         level.destroyBlockProgress(mob.getId(), digTarget, -1);
         digTarget = null;

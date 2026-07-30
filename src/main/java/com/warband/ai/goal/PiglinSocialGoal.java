@@ -44,11 +44,11 @@ public final class PiglinSocialGoal extends SquadGoal {
         resetCooldown(COOLDOWN_TICKS);
         if (regroupPos != null && moveTo(regroupPos)) {
             mob.addEffect(new MobEffectInstance(MobEffects.SPEED, 80, 0, false, true));
-            logTactic(Tactic.PIGLIN_SOCIAL);
+            announceTactic(Tactic.PIGLIN_SOCIAL);
             TacticalEffects.signal((ServerLevel) mob.level(), mob);
         } else if (strengthPulse) {
             mob.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 80, 0, false, true));
-            logTactic(Tactic.PIGLIN_SOCIAL);
+            announceTactic(Tactic.PIGLIN_SOCIAL);
             TacticalEffects.signal((ServerLevel) mob.level(), mob);
         }
     }

@@ -93,6 +93,11 @@ public final class WarbandConfig {
     public static double directorRelaxEnhancementChance = 0.15;
     public static boolean roleVisualsEnabled = true;
     public static boolean roleCuesEnabled = true;
+    /**
+     * If true, mobs make a short sound when they commit to a tactic, so squad
+     * intent is audible instead of invisible.
+     */
+    public static boolean tacticalBarksEnabled = true;
     public static boolean antiFarmEnabled = true;
     public static int antiFarmCrowdThreshold = 10;
     public static int antiFarmScanSeconds = 5;
@@ -290,6 +295,7 @@ public final class WarbandConfig {
         directorRelaxEnhancementChance = parseDouble(props, "directorRelaxEnhancementChance", directorRelaxEnhancementChance, 0.0, 1.0, logger);
         roleVisualsEnabled = parseBoolean(props, "roleVisualsEnabled", roleVisualsEnabled, logger);
         roleCuesEnabled = parseBoolean(props, "roleCuesEnabled", roleCuesEnabled, logger);
+        tacticalBarksEnabled = parseBoolean(props, "tacticalBarksEnabled", tacticalBarksEnabled, logger);
         antiFarmEnabled = parseBoolean(props, "antiFarmEnabled", antiFarmEnabled, logger);
         antiFarmCrowdThreshold = parseInt(props, "antiFarmCrowdThreshold", antiFarmCrowdThreshold, 3, 128, logger);
         antiFarmScanSeconds = parseInt(props, "antiFarmScanSeconds", antiFarmScanSeconds, 1, 600, logger);
@@ -450,6 +456,9 @@ public final class WarbandConfig {
                 roleVisualsEnabled=%s
                 # If true, role assignment plays a restrained vanilla mob cue.
                 roleCuesEnabled=%s
+                # If true, mobs sound off when committing to a tactic (advance, circle,
+                # withdraw, rally, lunge, search) so squad intent is audible.
+                tacticalBarksEnabled=%s
                 # If true, trapped/crowded farm mobs suppress drops and try to escape.
                 antiFarmEnabled=%s
                 antiFarmCrowdThreshold=%d
@@ -621,6 +630,7 @@ public final class WarbandConfig {
                     directorRelaxEnhancementChance,
                     roleVisualsEnabled,
                     roleCuesEnabled,
+                    tacticalBarksEnabled,
                     antiFarmEnabled,
                     antiFarmCrowdThreshold,
                     antiFarmScanSeconds,

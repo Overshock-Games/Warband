@@ -62,6 +62,6 @@ public final class SpiderLeapGoal extends SquadGoal {
         ServerLevel level = (ServerLevel) mob.level();
         TacticalEffects.webTrail(level, from, to);
         TacticalEffects.web(level, mob.blockPosition());
-        logTactic(Tactic.SPIDER_WEB);
+        announceTactic(Tactic.SPIDER_WEB);
     }
 }

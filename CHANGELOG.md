@@ -12,6 +12,7 @@ Last release for 26.1.2. Later updates target 26.2.
 - Added difficulty-scaled bow cadence and accuracy for skeletons, tuned with `rangedAccuracyBonusMax` and `rangedCadenceBonusMax`.
 - Added ghast fireball volleys and varied blaze fireball timing and spread.
 - Added door opening for illagers, piglins and drowned: they work the handle instead of being stopped by a closed door, and shut it behind them. Zombies still break doors down rather than opening them.
+- Added tactical barks: mobs make a short sound when they commit to a tactic, so you can hear whether a squad is advancing, circling, pulling back, calling for help, about to lunge, or hunting for you. Six cues rather than one per tactic, quiet and throttled, and silent for tactics that already announce themselves. Disable with `tacticalBarksEnabled`.
 - Added `customMobPools`, which opts modded mobs into Warband's behaviour pools so they gain the matching tactics and roles and squad up with their vanilla counterparts. Modded mobs that already extend a vanilla mob are picked up automatically and need no entry.
 - Added a one-time message the first time a player angers a faction, explaining the faction system and pointing at `/warband intel`.
 - Added `/warband debug stamp <difficulty>` for ops to re-stamp nearby hostiles at a chosen difficulty.

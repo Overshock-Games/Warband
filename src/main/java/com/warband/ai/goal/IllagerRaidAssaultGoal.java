@@ -83,14 +83,14 @@ public final class IllagerRaidAssaultGoal extends SquadGoal {
             }
         }
         if (role == Role.MARKSMAN || role == Role.SUPPORT || role == Role.LEADER) {
-            logTactic(Tactic.ILLAGER_COMMAND);
+            announceTactic(Tactic.ILLAGER_COMMAND);
             moveTo(raidTarget.blockPosition().offset(
                     mob.getRandom().nextInt(9) - 4,
                     0,
                     mob.getRandom().nextInt(9) - 4));
             return;
         }
-        logTactic(Tactic.ILLAGER_COMMAND);
+        announceTactic(Tactic.ILLAGER_COMMAND);
         moveTo(raidTarget.blockPosition());
     }
 

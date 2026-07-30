@@ -1,6 +1,7 @@
 package com.warband.ai.goal;
 
 import com.warband.ai.Squad;
+import com.warband.ai.TacticalBarks;
 import com.warband.ai.VisibilityRules;
 import com.warband.WarbandDebug;
 import com.warband.WarbandMod;
@@ -72,7 +73,14 @@ abstract class SquadGoal extends Goal implements WarbandGoal {
         return mob.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
     }
 
-    protected void logTactic(Tactic tactic) {
+    /**
+     * Announces a tactic: an audible bark for players, and a debug trace for logs.
+     * Barks are deliberately not gated on {@code debugTacticLogs} — they are a
+     * gameplay feature, not diagnostics — but both hang off this one call so cue
+     * coverage and log coverage can never drift apart.
+     */
+    protected void announceTactic(Tactic tactic) {
+        TacticalBarks.play(mob, tactic);
         if (!WarbandConfig.debugTacticLogs) return;
         LivingEntity target = mob.getTarget();
         // Routed through WarbandDebug so tactic logs share the machine-readable

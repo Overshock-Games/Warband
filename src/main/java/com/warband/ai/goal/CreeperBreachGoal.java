@@ -104,7 +104,7 @@ public final class CreeperBreachGoal extends SquadGoal {
         mob.getNavigation().stop();
         if (creeper.getSwellDir() <= 0) {
             creeper.setSwellDir(1);
-            logTactic(Tactic.CREEPER_BREACH);
+            announceTactic(Tactic.CREEPER_BREACH);
         }
     }
 

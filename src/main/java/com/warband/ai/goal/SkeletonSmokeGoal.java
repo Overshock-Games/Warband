@@ -32,7 +32,7 @@ public final class SkeletonSmokeGoal extends SquadGoal {
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
         if (retreat != null && moveTo(retreat)) {
-            logTactic(Tactic.SKELETON_SMOKE);
+            announceTactic(Tactic.SKELETON_SMOKE);
             TacticalEffects.smoke((ServerLevel) mob.level(), mob.position());
         }
     }

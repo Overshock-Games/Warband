@@ -45,7 +45,7 @@ public final class CreeperStalkGoal extends SquadGoal {
     public void start() {
         resetCooldown(COOLDOWN_TICKS);
         if (stalkPos != null && moveTo(stalkPos)) {
-            logTactic(Tactic.CREEPER_STALK);
+            announceTactic(Tactic.CREEPER_STALK);
             TacticalEffects.search((ServerLevel) mob.level(), mob.position());
         }
     }

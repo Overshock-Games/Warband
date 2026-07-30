@@ -57,7 +57,7 @@ public final class IllagerCommandGoal extends SquadGoal {
         if (leaderPulse) {
             commandTarget.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, true));
         }
-        logTactic(Tactic.ILLAGER_COMMAND);
+        announceTactic(Tactic.ILLAGER_COMMAND);
         TacticalEffects.signal((ServerLevel) mob.level(), mob);
     }
 }
