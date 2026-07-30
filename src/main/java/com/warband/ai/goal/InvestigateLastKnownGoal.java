@@ -21,7 +21,9 @@ public final class InvestigateLastKnownGoal extends SquadGoal {
     public boolean canUse() {
         if (visibleTarget() != null || !cooldownReady()) return false;
 
-        BlockPos lastKnown = squad.lastKnownPos();
+        // Own sighting as well as the squad's: a mob with no real squad had a
+        // permanently null blackboard, so solo mobs never searched for a lost player.
+        BlockPos lastKnown = rememberedTargetPos();
         if (lastKnown == null || mob.blockPosition().distSqr(lastKnown) < 4.0) return false;
         investigatePos = lastKnown;
         return true;

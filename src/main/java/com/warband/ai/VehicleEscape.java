@@ -5,10 +5,12 @@ import com.warband.config.WarbandConfig;
 import com.warband.entity.MobData;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.vehicle.minecart.AbstractMinecart;
 
 /**
@@ -29,6 +31,8 @@ public final class VehicleEscape {
     private static final int SCAN_INTERVAL = 40;
     /** Grace period so a legitimate jockey/transport moment is not instantly undone. */
     private static final int TRAPPED_TICKS = 60;
+    /** Only worth checking near a player — an unseen parked mob harms nobody. */
+    private static final double SCAN_RADIUS = 48.0;
 
     private static int tickCounter;
 
@@ -41,11 +45,15 @@ public final class VehicleEscape {
             if (++tickCounter < SCAN_INTERVAL) return;
             tickCounter = 0;
 
-            for (ServerLevel level : server.getAllLevels()) {
-                for (Entity entity : level.getAllEntities()) {
-                    if (!(entity instanceof Mob mob)) continue;
-                    if (!(mob instanceof Enemy)) continue;
-                    if (!MobData.isStamped(mob)) continue;
+            // Player-centric, like every other Warband scan. Iterating every entity
+            // in every dimension cost a full world sweep every two seconds to catch a
+            // rare edge case, and a mob parked in a boat nowhere near a player is not
+            // a problem worth paying for.
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (!(player.level() instanceof ServerLevel level)) continue;
+                AABB box = player.getBoundingBox().inflate(SCAN_RADIUS, SCAN_RADIUS, SCAN_RADIUS);
+                for (Mob mob : level.getEntitiesOfClass(Mob.class, box,
+                        candidate -> candidate instanceof Enemy && MobData.isStamped(candidate))) {
                     breakOut(mob);
                 }
             }

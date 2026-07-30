@@ -95,6 +95,12 @@ public final class PerceptionCues {
             if (++tickCounter < SCAN_INTERVAL) return;
             tickCounter = 0;
 
+            // Drop state for players who have left, or the map grows for the life of
+            // the server on a busy instance.
+            if (PLAYERS.size() > server.getPlayerList().getPlayerCount()) {
+                PLAYERS.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
+            }
+
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 // Spectators only. Creative players are still targetable in vanilla, and
                 // excluding them would also make this untestable in the mode people

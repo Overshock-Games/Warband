@@ -35,7 +35,7 @@ public final class PressureUnreachableGoal extends SquadGoal {
         if (frightened()) return false;
 
         LivingEntity target = visibleTarget();
-        BlockPos pressurePoint = target != null ? target.blockPosition() : squad.lastKnownPos();
+        BlockPos pressurePoint = target != null ? target.blockPosition() : rememberedTargetPos();
         if (pressurePoint == null) return false;
 
         MobData data = MobData.get(mob);

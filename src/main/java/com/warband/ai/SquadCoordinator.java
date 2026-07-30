@@ -521,10 +521,13 @@ public final class SquadCoordinator {
         // Universal: use a ladder you are already standing on. No goal flags, so it
         // layers under the attack goal's pathing rather than fighting it.
         accessor.warband$goalSelector().addGoal(2, new ClimbToTargetGoal(mob));
-        // The visible half of a suspicious state. Priority 1 so it outranks the vanilla
-        // stroll goals it is meant to interrupt; it requires no target, so a mob that
-        // has actually found someone is never held up by it.
-        accessor.warband$goalSelector().addGoal(1, new SuspicionPauseGoal(mob));
+        // The visible half of a suspicious state. Priority 2, deliberately *below* the
+        // other two universal priority-1 MOVE goals: equal priorities cannot preempt
+        // each other, so at 1 a mob frozen in a suspicious stare could not flee a
+        // swelling creeper or run from the sunrise. Staring is the least urgent of the
+        // three. Still above the vanilla stroll goals it exists to interrupt, and it
+        // requires no target, so it never competes with a vanilla attack goal at 2.
+        accessor.warband$goalSelector().addGoal(2, new SuspicionPauseGoal(mob));
         // Doors, for the mobs already treated as intelligent enough to retreat.
         // Requires opening up door pathing first, or the goal can never trigger —
         // it only fires when the current path already routes onto a door block.
