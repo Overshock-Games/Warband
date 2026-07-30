@@ -83,6 +83,29 @@ likely the same foldering pattern as (2).
 
 `GolemSpinGoal.java:60` — `knockback(double, double, double)` no longer resolves.
 
+## New in 1.4.0 — extra surfaces this port must re-verify
+
+The error taxonomy above was measured before 1.4.0's siege/cue work landed. That work
+added several version-sensitive dependencies, and **none of them are caught by a
+successful `compileJava`**:
+
+| Surface | Where | Risk on 26.2 |
+|---|---|---|
+| `@ModifyArg` on `Projectile.spawnProjectileUsingShoot(...DDDFF)` | `AbstractSkeletonRangedMixin` | **Highest.** A descriptor written out by hand. `mixins.json` uses `defaultRequire: 1`, so a changed signature is **fatal at load**, not a warning |
+| `@Inject` on `getAttackInterval` / `getHardAttackInterval` | `AbstractSkeletonRangedMixin` | Both are `protected` on `AbstractSkeleton`; a rename silently breaks archery tuning |
+| Accesswidener: `Mob.getAmbientSound()` | `warband.accesswidener` | Widening fails loudly if the descriptor moves; `MobVoice` falls back, so cues would go generic rather than crash |
+| `GameRules.MOB_GRIEFING` via `ServerLevel.getGameRules().get(...)` | `SiegeMineGoal`, `CreeperBreachGoal` | Gamerules were **already refactored in 26.x** (`world.level.gamerules`), so treat as volatile |
+| `NodeEvaluator.setCanPassDoors` / `setCanOpenDoors` via `PathNavigation.getNodeEvaluator()` | `WarbandDoorGoal` | Public today. If it moves again, door opening goes **silently inert** — it only fires when a path already routes onto a door |
+| `DoorBlock.isWoodenDoor`, `GoalUtils.hasGroundPathNavigation` | vanilla `DoorInteractGoal` internals | Behavioural dependency, not compile-time |
+| `BlockTags.WITHER_IMMUNE`, `state.getDestroySpeed` | `SiegeMineGoal` | Guards against mining the unbreakable — verify before shipping |
+| `Path.canReach()` | siege + creeper breach | Central to both; a semantic change would make sieges fire constantly, as it already did once |
+| `Vec3.atCenterOf` | all new code | **Deliberately already 26.2-safe** — new code never uses `BlockPos.getCenter()` |
+
+**Two consequences for the port plan.** `MOB_STACK_CLIMB` is gone (removed in 1.4.0 as
+unreachable), so it is one fewer tactic to migrate — enum bit 17 is intentionally unused
+and must stay that way for existing stamped masks. And the mixin verification step below
+is no longer optional: launch a dev server, because the mixin is now load-fatal.
+
 ## Recommended order
 
 1. Do item (1) on the 26.1.2 tree now — it is version-neutral and halves the diff.

@@ -150,8 +150,18 @@ Wall yourself into a 1-thick **dirt or cobblestone** box, fully sealed.
 
 After B1, walk away from the hole and wait 90s.
 
-- **PASS:** `EVENT=SIEGE_RESTORE pos=… block=minecraft:dirt` and the wall is visibly
-  whole again.
+- **PASS:** `EVENT=SIEGE_RESTORE pos=… block=minecraft:dirt`, a quiet place-sound and a
+  few particles, and the wall is visibly whole again.
+
+### B2b — A reseal never conjures a floating block **[LOG]**
+
+Let a mob mine one block, then **remove the surrounding structure yourself** (e.g. take
+down the pillar or wall it belonged to) and wait past 90s.
+
+- **PASS:** `EVENT=SIEGE_RESTORE_SKIPPED pos=… reason=structure_gone`, and nothing
+  reappears in mid-air.
+- Restore requires two solid orthogonal neighbours, so it repairs holes but will not
+  rebuild something you have dismantled.
 
 ### B3 — Restore never overwrites you **[LOG]**
 
