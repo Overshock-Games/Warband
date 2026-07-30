@@ -28,7 +28,7 @@ Last major release for 26.1.2.
 - Fixed `config/warband.properties` being read from the wrong folder on servers started outside the game directory, which made config edits look like they were discarded.
 - Fixed config edits needing a full game restart; the file is re-read when a world loads and on `/reload`.
 - Fixed creepers ignoring cats and ocelots.
-- Fixed spiders reaching a player and then never attacking, or stopping dead in front of them.
+- Fixed spiders reaching a player and then never attacking, or stopping dead in front of them. Ladder climbing also no longer applies to natural climbers like spiders, which vanilla already handles — it is now limited to actual ladders and vines, for mobs that cannot climb on their own.
 - Fixed spider webs being inescapable once they landed.
 - Fixed squad members spawning inside terrain and on top of each other, which made hordes pile into one spot instead of reaching the player.
 - Fixed zombie encirclement giving up when its preferred approach was blocked, putting the whole squad back onto one path.
