@@ -1,0 +1,158 @@
+# Borrowing from other games
+
+Cross-domain design notes for post-1.4.0. Sources are games, not Minecraft mods —
+mod-space comparison lives in `docs/FEATURE-GAP.md`.
+
+## The constraint that filters everything
+
+Warband is **server-side with no client mod**. That eliminates most borrowed
+mechanics outright: no custom HUD, no new models, no shaders, no input capture, no
+UI panels. Anything imported has to be expressible through vanilla channels.
+
+The actual toolkit, and how much of it is currently spent:
+
+| Channel | Status in 1.4.0 |
+|---|---|
+| Vanilla sounds | 43 call sites, but ad-hoc — no systematic per-tactic vocabulary |
+| Particles | Used (`TacticalEffects`) |
+| Chat / action bar | Used, mostly by the illager systems |
+| Name tags (+ always-visible) | Used for named illagers and bounty hunters |
+| Glowing (outline through walls) | Used for the bounty mark |
+| Equipment / entity scale | Used for role visuals |
+| Potion effects | Used |
+| **Boss bar (`ServerBossEvent`)** | **Completely unused** — a real server-side HUD, free |
+| Movement itself | The main channel, and the most expensive to read |
+
+## The through-line: Warband is smarter than it looks
+
+30 tactics ship in 1.4.0. A player cannot perceive most of them. The feedback that
+started this whole pass said it plainly about the deepest system in the mod:
+
+> "I really don't get what the changes were … I still don't know what we were
+> supposed to do or think about all this illager wars thing, which I don't even know
+> if we got to see or if we didn't even trigger it."
+
+That is not a capability gap, it is a **legibility** gap, and it is exactly what
+combat-AI games solved decades ago. So the highest-value borrows are not new
+behaviours — they are ways to make existing behaviour readable.
+
+## The table
+
+| Source | Mechanic | Plugs into | Cost | Verdict |
+|---|---|---|---|---|
+| **F.E.A.R. / Halo** | Squad *barks*: enemies announce intent out loud ("flanking left") | `TacticalEffects.roleCue`, existing 30-tactic mask | Low | **Take first** |
+| **Thief / Splinter Cell** | Three-state awareness — unaware → suspicious → alert, each with a tell | `VisibilityRules`, `Squad.lastKnownPos` | Low | **Take** |
+| **Shadow of Mordor** | Nemesis *adaptation*: a survivor returns changed by how it nearly died | `IllagerGrudge` (already persists named survivors) | Low | **Take** |
+| **Shadow of Mordor** | Reputation → pre-emptive fear; grunts flee a player who slaughtered their army | `FactionReputation` heat, `Squad.morale` | Low | **Take** |
+| **Left 4 Dead** | Boomer bile: a mark that *summons* the horde onto you | `Squad.alertTo`, `broadcastDistress`, `WitchSupportGoal` | Low | Strong |
+| **XCOM** | Overwatch: a shooter holds its shot for the moment you break cover | `KiteGoal`, marksman role, ranged tuning | Medium | Strong |
+| **XCOM** | Flanking actually *rewards* the flanker | `FlankGoal` (exists but is currently cosmetic) | Low | Strong |
+| **Left 4 Dead** | Hunter pin: you are held until a teammate frees you | `MultiplayerDirector` | Medium | Careful |
+| **Monster Hunter** | Wounded monster flees and leaves a trackable trail | `RetreatWhenLowGoal`, bounty hunters | Medium | Nice-to-have |
+| **Alien: Isolation** | Director knows where you are; the creature must legitimately find you | — | — | **Already built** |
+| **Left 4 Dead** | AI Director pacing (build-up / peak / relax) | — | — | **Already built** |
+| **Shadow of Mordor** | Named ranks, grudges, promotion on death | — | — | **Already built** |
+| Darkest Dungeon | Stress / afflictions | — | High | Reject: too RPG for vanilla+ |
+| Souls games | Stamina, poise, i-frames | — | High | Reject: needs client-side combat feel |
+| Total War | Formation facing / morale shock | — | High | Reject: Minecraft crowds are too small and terrain too vertical |
+
+---
+
+## 1. Tactical barks — F.E.A.R., Halo *(do this first)*
+
+F.E.A.R.'s replicas are not much smarter than their contemporaries. They *sound*
+smarter, because they narrate: "he's flanking!", "reloading, cover me!". Halo's
+grunts panic audibly when an elite dies. Players credit AI with intelligence
+proportional to how much of its reasoning they can hear.
+
+Warband has 30 tactics and no cue vocabulary. Assign each tactic family one
+recognisable vanilla sound, played on the acting mob at low volume:
+
+| Tactic family | Candidate cue |
+|---|---|
+| Flank / encircle | `ILLAGER_*` / mob ambient, doubled — a "moving" tell |
+| Call backup / distress | `RAID_HORN` (already the faction arrival cue) |
+| Retreat / rout | mob hurt sound at low pitch |
+| Siege dig | already covered by real block-break cracks |
+| Overwatch / hold | bow-draw sound |
+| Regroup | short horn |
+
+Rules that keep it from becoming noise: one cue per mob per few seconds, radius-
+limited, and **never** on a tactic the player cannot see the consequence of. Pair
+with `debugTacticLogs` so cue coverage is auditable.
+
+Cost is genuinely low — the goals already call `logTactic(...)` at exactly the right
+moments, so the hook points exist. This is the single biggest
+perceived-intelligence-per-line change available.
+
+## 2. Three-state awareness — Thief
+
+`VisibilityRules` already reduces detection for crouching, invisible and
+darkness-affected targets. **Players have no way to know that exists**, so stealth is
+an invisible mechanic and nobody plays around it.
+
+Borrow Thief's escalation, expressed with vanilla tools:
+
+- **Unaware** — normal.
+- **Suspicious** — mob stops, turns toward the last stimulus, plays an ambient sound,
+  waits ~1s. This is the tell. It also creates the *"did it see me?"* beat that makes
+  stealth tense.
+- **Alert** — normal targeting, plus the existing `Squad.alertTo` share.
+
+`lastKnownPos` and the perception tick already exist; this is mostly a state machine
+plus a pause and a sound. It converts a hidden system into a played-around-with one,
+and it rewards crouching, which currently does something real and invisible.
+
+## 3. Nemesis adaptation — Shadow of Mordor
+
+The nemesis system's core loop is not naming enemies — Warband already names them.
+It is **enemies that return changed by the specific way they beat or nearly lost to
+you**. Warband already persists a named survivor in `IllagerGrudge` when one escapes.
+Add one field: what nearly killed it.
+
+- Nearly died to fire → returns with Fire Resistance, or wearing a helmet
+- Nearly died to bow → returns with a shield
+- Nearly died in melee → returns with knockback resistance and reach
+- Escaped by fleeing → returns faster, and with allies
+
+Then say so when it arrives: *"Yorn of the Ash Banner returns, scarred and shielded."*
+Warband already has the arrival message, the name, and the equipment plumbing
+(`IllagerLoadout`). This is a handful of fields and one switch, and it produces the
+strongest story beats in the genre.
+
+## 4. Reputation fear — Shadow of Mordor
+
+Faction heat currently only escalates: more patrols, bounty hunters, crusades. In
+Shadow of Mordor, notoriety cuts *both* ways — weak enemies flee the player who
+butchered their army.
+
+`FactionReputation.heat` and `Squad.morale` already exist, as does `RetreatWhenLowGoal`
+and the rout state. At high heat, low-difficulty members of that faction should break
+and run on sight. It costs almost nothing, it makes heat legible in a *second* way,
+and it hands the player a power fantasy the mod currently only ever takes away.
+
+---
+
+## Deliberate rejects
+
+- **Stamina / poise / i-frames** (Souls). Combat feel needs client-side timing
+  feedback. Server-side approximations feel like lag, not weight.
+- **Stress and afflictions** (Darkest Dungeon). Interesting, but it is an RPG layer
+  on a mod whose pitch is vanilla+.
+- **Formation facing and morale shock** (Total War). Minecraft engagements are 6–14
+  mobs in vertical, cluttered terrain. Formation facing needs open ground and scale.
+- **Anything with a custom HUD.** Boss bars are the only real HUD available, and they
+  should be spent on something worth a permanent bar — a siege in progress, or a
+  named nemesis fight — not on a threat meter.
+
+## Suggested order
+
+1. **Barks** — largest perceived gain, lowest cost, fixes a reported complaint.
+2. **Nemesis adaptation** — biggest story payoff, and the state is already persisted.
+3. **Awareness states** — makes an existing invisible system playable.
+4. **Reputation fear** — nearly free once heat is already tracked.
+5. Overwatch and flank rewards — give two existing tactics actual teeth.
+
+Everything above rides on systems already shipped. That is the filter: borrow what
+plugs into the squad blackboard, the tactic mask, the difficulty scalar, or faction
+heat. Anything needing a new subsystem is a different project.
